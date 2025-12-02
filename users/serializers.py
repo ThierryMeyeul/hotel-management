@@ -9,7 +9,7 @@ class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = ['id', 'username', 'email', 'role', 'hotel', 'first_name', 'last_name', 'password']
-        read_only_fields = ['hotel', 'role'] # On évite que le client change son rôle
+        read_only_fields = ['hotel']
         extra_kwargs = {'password': {'write_only': True}}
         
     def update(self, instance, validated_data):
