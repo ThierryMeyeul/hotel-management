@@ -2,6 +2,7 @@ from django.shortcuts import render
 from rest_framework import generics, viewsets
 from rest_framework.response import Response
 from rest_framework import status
+from rest_framework.permissions import IsAuthenticated
 
 from users.models import User, RoleEnum
 from users.serializers import RegisterSerializer, LoginSerializer, UserSerializer
@@ -21,6 +22,7 @@ class LoginAPIView(generics.GenericAPIView):
 
 class UserViewSet(viewsets.ModelViewSet):
     queryset = User.objects.all()
+    permission_classes = [IsAuthenticated]
     
     def get_serializer_class(self):
         if self.action == 'create':
@@ -28,6 +30,13 @@ class UserViewSet(viewsets.ModelViewSet):
         return UserSerializer
     
     def update(self, request, *args, **kwargs):
+
+        if not request.user.is_authenticated:
+            return Response(
+                {'detail': 'Authentication credentials were not provided.'},
+                status=status.HTTP_401_UNAUTHORIZED
+            )
+
         user = self.get_object()
         
         if request.user.role != RoleEnum.SUPER_ADMIN and request.user != user:
