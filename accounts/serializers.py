@@ -65,6 +65,6 @@ class LoginSerializer(serializers.Serializer):
                     'access': str(refresh.access_token)
                 }
             }
-            return data['data']
+            return data
         else:
             raise serializers.ValidationError("Must include 'username' and 'password'.")
