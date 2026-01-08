@@ -14,6 +14,16 @@ from pathlib import Path
 from config import Config
 from datetime import timedelta
 
+from config import EmailConfig
+
+# Email configuration
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST = EmailConfig.EMAIL_HOST
+EMAIL_PORT = EmailConfig.EMAIL_PORT
+EMAIL_HOST_USER = EmailConfig.EMAIL_HOST_USER
+EMAIL_HOST_PASSWORD = EmailConfig.EMAIL_HOST_PASSWORD
+EMAIL_USE_TLS = EmailConfig.EMAIL_USE_TLS
+
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 

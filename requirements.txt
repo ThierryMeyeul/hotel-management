@@ -6,3 +6,4 @@ djangorestframework-jwt
 mysqlclient
 python-dotenv
 Pillow
+six

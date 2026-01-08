@@ -1,8 +1,13 @@
 from rest_framework import serializers
 from django.contrib.auth import authenticate
 from rest_framework_simplejwt.tokens import RefreshToken
+from django.utils.http import urlsafe_base64_encode
+from django.utils.encoding import force_bytes
+from django.core.mail import send_mail
+from django.conf import settings
 
 from .models import User
+from .tokens import account_activation_token
 
 
 class UserSerializer(serializers.ModelSerializer):
@@ -35,7 +40,40 @@ class RegisterSerializer(serializers.ModelSerializer):
         user = User(**validated_data)
         if password:
             user.set_password(password)
+        user.is_active = False  # Deactivate account until it is confirmed
         user.save()
+        
+        uid = urlsafe_base64_encode(force_bytes(user.pk))
+        token = account_activation_token.make_token(user)
+        activation_link = f"http://127.0.0.1:8000/api/accounts/activate/{uid}/{token}/"
+        
+        subject = "Activez votre compte sur Hotel Management"
+        message = f"""
+            Bonjour {user.username},
+
+            Merci de vous être inscrit sur notre application Hotel Management !
+
+            Pour activer votre compte et commencer à profiter de toutes nos fonctionnalités, veuillez cliquer sur le lien ci-dessous :
+
+            🔗 {activation_link}
+            ⚠️ Ce lien est valable pour une durée limitée et est destiné uniquement à votre adresse e-mail.
+
+            Si vous n'avez pas créé de compte sur Hotel Management, vous pouvez ignorer ce message.
+
+            Nous sommes ravis de vous accueillir parmi nous et espérons que vous apprécierez votre expérience !
+
+            Cordialement,
+            L'équipe Hotel Management
+        """
+        
+        send_mail(
+            subject=subject,
+            message=message,
+            from_email=settings.EMAIL_HOST_USER,
+            recipient_list=[user.email],
+            fail_silently=False,
+        )
+        
         return user
     
     
@@ -46,9 +84,14 @@ class LoginSerializer(serializers.Serializer):
     role = serializers.CharField(read_only=True)
     
     def validate(self, data):
-        if data['username'] and data['password']:
-            if not User.objects.filter(username=data['username']).exists():
+        if data['username'] and data['password']:           
+            try:
+                user = User.objects.get(username=data['username'])
+            except User.DoesNotExist:
                 raise serializers.ValidationError("User with this username does not exist.")
+            
+            if not user.is_active:
+                raise serializers.ValidationError("Account is not activated. Please check your email for the activation link.")
             
             user = authenticate(username=data['username'], password=data['password'])
             
