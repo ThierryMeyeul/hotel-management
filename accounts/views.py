@@ -5,6 +5,7 @@ from rest_framework.permissions import IsAuthenticated
 from django.utils.http import urlsafe_base64_decode
 from django.utils.encoding import force_str
 from rest_framework.views import APIView
+from rest_framework_simplejwt.tokens import RefreshToken
 
 from .models import User, RoleEnum
 from .serializers import UserSerializer, RegisterSerializer, LoginSerializer
@@ -61,3 +62,16 @@ class ActivateAccountView(APIView):
             return Response({"detail": "Account activated successfully."}, status=status.HTTP_200_OK)
         else:
             return Response({"detail": "Activation link is invalid!"}, status=status.HTTP_400_BAD_REQUEST)
+        
+
+class LogoutView(APIView):
+    permission_classes = [IsAuthenticated]
+    
+    def post(self, request):
+        try:
+            refresh_token = request.data["refresh"]
+            token = RefreshToken(refresh_token)
+            token.blacklist()
+            return Response({"detail": "Logout successful."}, status=status.HTTP_205_RESET_CONTENT)
+        except Exception as e:
+            return Response({"detail": "Invalid token."}, status=status.HTTP_400_BAD_REQUEST)

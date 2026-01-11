@@ -45,7 +45,7 @@ class RegisterSerializer(serializers.ModelSerializer):
         
         uid = urlsafe_base64_encode(force_bytes(user.pk))
         token = account_activation_token.make_token(user)
-        activation_link = f"http://127.0.0.1:8000/api/accounts/activate/{uid}/{token}/"
+        activation_link = f"http://127.0.0.1:5173/activate/{uid}/{token}/"
         
         subject = "Activez votre compte sur Hotel Management"
         message = f"""
@@ -101,9 +101,11 @@ class LoginSerializer(serializers.Serializer):
             refresh = RefreshToken.for_user(user)
             
             data['data'] = {
-                'id': user.id,
-                'username': user.username,
-                'role': user.role,
+                'user': {
+                    'id': user.id,
+                    'username': user.username,
+                    'role': user.role,
+                },
                 'token': {
                     'refresh': str(refresh),
                     'access': str(refresh.access_token)
