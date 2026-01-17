@@ -1,8 +1,8 @@
 import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { register as registerUser } from "../../services/auth.service";
-import Logo from "../../components/Logo";
-import Spinner from "../../components/Spinner";
+import Logo from "../../components/ui/Logo";
+import Spinner from "../../components/ui/Spinner";
 
 export default function Register() {
   const [username, setUsername] = useState("");

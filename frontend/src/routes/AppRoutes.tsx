@@ -5,12 +5,13 @@ import ActivateAccount from "../pages/auth/activeAccount";
 import ActivationSent from "../pages/auth/activationSent";
 import AdminDashboard from "../pages/AdminDashboard";
 import NotAuthorized from "../pages/NotAuthorized";
+import Home from "../pages/Home";
 import RoleRoute from "./RoleRoute";
 
 export default function AppRoutes() {
   return (
     <Routes>
-      <Route path="/" element={<h1>Home Page</h1>} />
+      <Route path="/" element={<Home />} />
       <Route path="/about" element={<h1>About Page</h1>} />
       <Route path="/login" element={<Login />} />
       <Route path="/signup" element={<Register />} />
