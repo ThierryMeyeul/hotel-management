@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { activateAccount } from "../../services/auth.service";
-import Logo from "../../components/ui/Logo";
+import Logo from "../../components/Logo";
 
 
 export default function ActivateAccount() {

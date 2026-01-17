@@ -1,8 +1,8 @@
 import { useState } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { login, saveToken, saveUserInfo } from "../../services/auth.service";
-import Logo from "../../components/ui/Logo";
-import Spinner from "../../components/ui/Spinner";
+import Logo from "../../components/Logo";
+import Spinner from "../../components/Spinner";
 import { useAuth } from "../../context/AuthContext";
 
 export default function Login() {

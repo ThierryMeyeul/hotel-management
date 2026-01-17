@@ -56,6 +56,7 @@ INSTALLED_APPS = [
     'rest_framework.authtoken',
     'rest_framework_simplejwt.token_blacklist',
     'corsheaders',
+    'django.contrib.gis',
     'accounts',
     'hotels',
     'payments',
@@ -114,7 +115,7 @@ WSGI_APPLICATION = 'backend.wsgi.application'
 
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.mysql',
+        'ENGINE': 'django.contrib.gis.db.backends.postgis',
         'NAME': Config.DB_NAME,
         'USER': Config.DB_USER, 
         'PASSWORD': Config.DB_PASSWORD,

@@ -7,6 +7,7 @@ import AdminDashboard from "../pages/AdminDashboard";
 import NotAuthorized from "../pages/NotAuthorized";
 import Home from "../pages/Home";
 import RoleRoute from "./RoleRoute";
+import HotelListPage from "../pages/hotels/hotelList";
 
 export default function AppRoutes() {
   return (
@@ -19,6 +20,7 @@ export default function AppRoutes() {
       <Route path="/activation-sent" element={<ActivationSent />} />
       <Route path="/not-authorized" element={<NotAuthorized />} />
       <Route path="/admin" element={<RoleRoute requiredRole="ADMIN"><AdminDashboard /></RoleRoute>} />
+      <Route path="/hotels" element={<HotelListPage />} />
     </Routes>
   );
 }

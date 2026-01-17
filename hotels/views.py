@@ -1,18 +1,19 @@
-from rest_framework import viewsets
+from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.exceptions import ValidationError
 from django.contrib.auth import get_user_model
 
 from .models import Hotel, Room, HotelImage
-from .serializers import HotelSerializer, RoomSerializer, HotelImageSerializer
+from .serializers import HotelSerializer, RoomSerializer, HotelImageSerializer, NearbyHotelsSerializer
 from .permissions import HotelPermission
+from .utils.geolocation import get_nearby_hotels
 
 
 user = get_user_model()
 
 class HotelViewSet(viewsets.ModelViewSet): 
-    queryset = Hotel.objects.all()
+    queryset = Hotel.objects.filter(is_active=True)
     serializer_class = HotelSerializer
     permission_classes = [HotelPermission]
     
@@ -45,6 +46,33 @@ class HotelViewSet(viewsets.ModelViewSet):
         hotel.save()
         
         return Response({'detail': f'Manager {manager.username} assigned to hotel {hotel.name}.'})
+    
+    @action(detail=False, methods=['get'], url_path='nearby')
+    def nearby_hotels(self, request):
+        serializer = NearbyHotelsSerializer(data=request.query_params)
+        if not serializer.is_valid():
+            return Response({"errors": serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
+        
+        data = serializer.validated_data
+        latitude = data['latitude']
+        longitude = data['longitude']
+        radius = data.get('radius', 50)
+        max_results = data.get('max_results', 20)
+        
+        try:
+            nearby_hotels = get_nearby_hotels(latitude, longitude, radius_km=radius, max_results=max_results)
+            serializer = self.get_serializer(nearby_hotels, many=True)
+            return Response({
+                "count": len(nearby_hotels),
+                "user_location": {
+                    "latitude": latitude,
+                    "longitude": longitude
+                },
+                "search_radius_km": radius,
+                "results": serializer.data
+            })
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
     
     @action(detail=True, methods=['get', 'post'], url_path='rooms')
     def rooms(self, request, pk=None):

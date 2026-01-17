@@ -1,5 +1,7 @@
 from django.db import models
 from django.conf import settings
+from django.contrib.gis.geos import Point
+from django.contrib.gis.db import models as gis_models
 
 
 User = settings.AUTH_USER_MODEL
@@ -12,16 +14,23 @@ class Hotel(models.Model):
     city = models.CharField(max_length=100)
     country = models.CharField(max_length=100)
 
-    latitude = models.DecimalField(max_digits=9, decimal_places=6, blank=True, null=True)
-    longitude = models.DecimalField(max_digits=9, decimal_places=6, blank=True, null=True)
+    latitude = models.FloatField(null=True, blank=True)
+    longitude = models.FloatField(null=True, blank=True)
+    location = gis_models.PointField(geography=True, srid=4326, blank=True, null=True)
 
     manager = models.ForeignKey(User, on_delete=models.CASCADE, related_name='managed_hotels', null=True, blank=True)
     
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    is_active = models.BooleanField(default=True)
 
     def __str__(self):
         return self.name
+    
+    def save(self, *args, **kwargs):
+        if self.latitude and self.longitude:
+            self.location = Point(float(self.longitude), float(self.latitude), srid=4326)
+        super().save(*args, **kwargs)
     
     
 class HotelImage(models.Model):
