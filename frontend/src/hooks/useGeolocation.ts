@@ -40,7 +40,7 @@ export const useGeolocation = () => {
                 setError(null)
 
                 const defaultOptions: PositionOptions = {
-                    enableHighAccuracy: false, 
+                    enableHighAccuracy: true, 
                     timeout: 20000,
                     maximumAge: 300000,
                 }; 
