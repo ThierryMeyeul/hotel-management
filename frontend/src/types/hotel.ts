@@ -9,17 +9,17 @@ export interface Hotel {
   country: string;
   website: string;
   image_url: string;
-  latitude?: number;
-  longitude?: number;
-  location?: {
+  latitude: number;
+  longitude: number;
+  location: {
     type: 'Point';
     coordinates: [number, number];
   };
   distance: number;
-  managerId?: string;
-  createdAt: string;
-  updatedAt: string;
-  isActive: boolean;
+  manager_id?: number;
+  created_at: string;
+  updated_at: string;
+  is_active: boolean;
 }
 
 export interface NearbySearchParams {
@@ -47,4 +47,24 @@ export interface UserLocation {
 export interface GeolocationError {
   code: number;
   message: string;
+}
+
+export interface Room {
+  id: number;
+  room_number: string;
+  room_type: string;
+  price_per_night: string;
+  is_available: boolean;
+}
+
+export interface HotelImage {
+  id: number;
+  image_url: string;
+  caption?: string;
+  is_cover: boolean;
+}
+
+export interface HotelDetails extends Hotel {
+  images: HotelImage[];
+  rooms: Room[];
 }

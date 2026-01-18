@@ -1,5 +1,5 @@
 import { useState, useCallback } from "react";
-import { hotelService } from "../services/hotelService";
+import { hotelService } from "../services/hotel.service";
 import type { Hotel, NearbySearchParams } from "../types/hotel";
 
 export const useHotels = () => {

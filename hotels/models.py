@@ -10,9 +10,12 @@ class Hotel(models.Model):
     name = models.CharField(max_length=255)
     address = models.CharField(max_length=500)
     description = models.TextField(blank=True, null=True)
+    email = models.CharField(max_length=100, null=True, blank=True)
     
     city = models.CharField(max_length=100)
     country = models.CharField(max_length=100)
+    website = models.CharField(max_length=50, null=True, blank=True)
+    phone = models.CharField(max_length=20, null=True, blank=True)
 
     latitude = models.FloatField(null=True, blank=True)
     longitude = models.FloatField(null=True, blank=True)

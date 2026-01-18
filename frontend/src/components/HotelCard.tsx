@@ -1,6 +1,7 @@
 import React from 'react';
 import type { Hotel } from '../types/hotel';
 import { MapPin, Phone, Mail, Globe } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
 interface HotelCardProps {
   hotel: Hotel;
@@ -15,11 +16,20 @@ const HotelCard: React.FC<HotelCardProps> = ({
   showDistance = false, 
   highlight = false 
 }) => {
+  const navigate = useNavigate();
   const handleViewDetails = () => {
     if (onViewDetails) {
       onViewDetails(hotel);
+      navigate(`/hotels/${hotel.id}`);
     }
   };
+
+  const websiteUrl =
+    hotel.website &&
+    (hotel.website.startsWith('http://') || hotel.website.startsWith('https://')
+      ? hotel.website
+      : `https://${hotel.website}`);
+
 
 //   const renderStars = (rating: number | null) => {
 //     if (!rating) return null;
@@ -67,7 +77,7 @@ const HotelCard: React.FC<HotelCardProps> = ({
       
       {/* Image de l'hôtel */}
       <div className="h-48 bg-gradient-to-br from-indigo-100 to-pink-50 relative overflow-hidden">
-        {/* {hotel.image_url ? (
+        {hotel.image_url ? (
           <img 
             src={hotel.image_url} 
             alt={hotel.name}
@@ -80,7 +90,7 @@ const HotelCard: React.FC<HotelCardProps> = ({
               <p className="text-gray-500 font-medium">{hotel.name}</p>
             </div>
           </div>
-        )} */}
+        )}
         
         {/* Overlay dégradé */}
         <div className="absolute inset-0 bg-gradient-to-t from-black/10 to-transparent"></div>
@@ -162,9 +172,9 @@ const HotelCard: React.FC<HotelCardProps> = ({
           </button>
           
           <div className="flex items-center gap-3">
-            {hotel.website && (
+            {websiteUrl && (
               <a
-                href={hotel.website}
+                href={websiteUrl}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-flex items-center gap-2 px-4 py-2 bg-blue-50 text-blue-600 hover:text-blue-800 hover:bg-blue-100 font-medium rounded-lg transition-colors duration-200"

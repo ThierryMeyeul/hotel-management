@@ -23,9 +23,9 @@ class HotelSerializer(serializers.ModelSerializer):
     class Meta:
         model = Hotel
         fields = [
-            'id', 'name', 'address', 'description', 'city', 'country',
+            'id', 'name', 'address', 'description', 'city', 'country', 'email',
             'latitude', 'longitude', 'location', 'manager', 'created_at', 'updated_at',
-            'images', 'rooms', 'is_active', 'distance'
+            'images', 'rooms', 'is_active', 'distance', 'website', 'phone'
         ]
         read_only_fields = ['created_at', 'updated_at', 'location', 'distance']
         

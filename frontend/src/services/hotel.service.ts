@@ -1,5 +1,5 @@
 import api from "../api/axios"
-import type { Hotel, NearbySearchParams, NearbyHotelResponse } from "../types/hotel";
+import type { Hotel, NearbySearchParams, NearbyHotelResponse, HotelDetails } from "../types/hotel";
 
 
 export const hotelService = {
@@ -25,6 +25,15 @@ export const hotelService = {
             return response.data;
         } catch (error: any) {
             throw new Error(error.response?.data?.detail || 'Failed to fetch nearby hotels');
+        }
+    },
+
+    async getHotelDetails(id: number): Promise<HotelDetails> {
+        try {
+            const response = await api.get<HotelDetails>(`hotels/${id}/`)
+            return response.data
+        } catch (error: any) {
+            throw new Error(error.response?.data?.detail || 'Erreur lors du chargement des détails de l\'hôtel');
         }
     }
 };
