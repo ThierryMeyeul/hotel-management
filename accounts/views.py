@@ -1,11 +1,13 @@
 from django.shortcuts import render
 from rest_framework import generics, status, viewsets
 from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated, AllowAny
 from django.utils.http import urlsafe_base64_decode
 from django.utils.encoding import force_str
 from rest_framework.views import APIView
 from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework.exceptions import PermissionDenied
+from rest_framework.decorators import action
 
 from .models import User, RoleEnum
 from .serializers import UserSerializer, RegisterSerializer, LoginSerializer
@@ -44,10 +46,24 @@ class UserViewSet(viewsets.ModelViewSet):
             return Response({"detail": "You do not have permission to perform this action."}, status=status.HTTP_403_FORBIDDEN)
         
         return super().update(request, *args, **kwargs)
+
+    @action(detail=False, methods=['get'], url_path='directors')
+    def directors(self, request):
+        # Sécurité : ADMIN seulement
+        if request.user.role != 'ADMIN':
+            raise PermissionDenied("Accès réservé à l'administrateur.")
+
+        directors = User.objects.filter(
+            role='DIRECTOR'
+        )
+
+        serializer = self.get_serializer(directors, many=True)
+        return Response(serializer.data)
+
     
     
 class ActivateAccountView(APIView):
-    permission_classes = []
+    permission_classes = [AllowAny]
     
     def get(self, request, uidb64, token):
         try:

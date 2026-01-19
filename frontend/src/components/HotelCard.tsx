@@ -2,6 +2,7 @@ import React from 'react';
 import type { Hotel } from '../types/hotel';
 import { MapPin, Phone, Mail, Globe } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext'; // Assurez-vous que le chemin est correct
 
 interface HotelCardProps {
   hotel: Hotel;
@@ -17,11 +18,36 @@ const HotelCard: React.FC<HotelCardProps> = ({
   highlight = false 
 }) => {
   const navigate = useNavigate();
+  const { user, isAuthenticated } = useAuth();
+
   const handleViewDetails = () => {
     if (onViewDetails) {
       onViewDetails(hotel);
-      navigate(`/hotels/${hotel.id}`);
     }
+
+    // Déterminer la route en fonction du rôle de l'utilisateur
+    let route = `/hotels/${hotel.id}`; // Par défaut pour les visiteurs
+    
+    if (isAuthenticated && user) {
+      // Convertir le rôle en minuscules pour correspondre aux routes
+      const userRole = user.role.toLowerCase();
+      
+      switch (userRole) {
+        case 'admin':
+          route = `/admin/hotels/${hotel.id}`;
+          break;
+        case 'director':
+          route = `/director/hotels/${hotel.id}`;
+          break;
+        case 'client':
+          route = `/client/hotels/${hotel.id}`;
+          break;
+        default:
+          route = `/hotels/${hotel.id}`;
+      }
+    }
+
+    navigate(route);
   };
 
   const websiteUrl =
@@ -29,35 +55,6 @@ const HotelCard: React.FC<HotelCardProps> = ({
     (hotel.website.startsWith('http://') || hotel.website.startsWith('https://')
       ? hotel.website
       : `https://${hotel.website}`);
-
-
-//   const renderStars = (rating: number | null) => {
-//     if (!rating) return null;
-    
-//     const stars = [];
-//     const fullStars = Math.floor(rating);
-//     const hasHalfStar = rating % 1 >= 0.5;
-    
-//     for (let i = 0; i < fullStars; i++) {
-//       stars.push(<Star key={i} className="w-4 h-4 text-yellow-400 fill-current" />);
-//     }
-    
-//     if (hasHalfStar) {
-//       stars.push(<Star key="half" className="w-4 h-4 text-yellow-400 fill-current opacity-70" />);
-//     }
-    
-//     const emptyStars = 5 - Math.ceil(rating);
-//     for (let i = 0; i < emptyStars; i++) {
-//       stars.push(<Star key={`empty-${i}`} className="w-4 h-4 text-gray-300" />);
-//     }
-    
-//     return (
-//       <div className="flex items-center gap-1">
-//         {stars}
-//         <span className="ml-1 text-sm text-gray-600">({rating.toFixed(1)})</span>
-//       </div>
-//     );
-//   };
 
   return (
     <div className={`
@@ -104,9 +101,6 @@ const HotelCard: React.FC<HotelCardProps> = ({
             <h3 className="text-xl font-bold text-gray-900 mb-2 group-hover:text-indigo-700 transition-colors">
               {hotel.name}
             </h3>
-            <div className="flex items-center gap-2">
-              {/* {renderStars(hotel.rating)} */}
-            </div>
           </div>
           
           {/* Distance et prix */}
@@ -116,12 +110,6 @@ const HotelCard: React.FC<HotelCardProps> = ({
                 <span className="text-sm font-bold">{hotel.distance.toFixed(1)} km</span>
               </div>
             )}
-            
-            {/* {hotel.price_per_night !== null && hotel.price_per_night !== undefined && (
-              <div className="text-lg font-bold text-gray-900">
-                {hotel.price_per_night.toFixed(0)} <span className="text-gray-600 text-sm font-normal">€/nuit</span>
-              </div>
-            )} */}
           </div>
         </div>
 

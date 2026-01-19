@@ -48,17 +48,6 @@ const AdminSidebar: React.FC<AdminSidebarProps> = ({
       subItems: [
         { title: 'Liste des hôtels', path: '/admin/hotels', icon: List },
         { title: 'Ajouter un hôtel', path: '/admin/hotels/create', icon: PlusCircle },
-        { title: 'Gérer les chambres', path: '/admin/hotels/rooms', icon: Home }
-      ]
-    },
-    {
-      title: 'Utilisateurs',
-      icon: Users,
-      path: '/admin/users',
-      subItems: [
-        { title: 'Tous les utilisateurs', path: '/admin/users', icon: Users },
-        { title: 'Créer utilisateur', path: '/admin/users/create', icon: PlusCircle },
-        { title: 'Rôles & Permissions', path: '/admin/users/roles', icon: Shield }
       ]
     },
     {
@@ -76,28 +65,28 @@ const AdminSidebar: React.FC<AdminSidebarProps> = ({
         { title: 'Liste managers', path: '/admin/managers', icon: List }
       ]
     },
-    {
-      title: 'Analytics',
-      icon: BarChart3,
-      path: '/admin/analytics'
-    },
-    {
-      title: 'Transactions',
-      icon: CreditCard,
-      path: '/admin/transactions',
-      badge: '3'
-    },
-    {
-      title: 'Messages',
-      icon: MessageSquare,
-      path: '/admin/messages',
-      badge: '5'
-    },
-    {
-      title: 'Rapports',
-      icon: FileText,
-      path: '/admin/reports'
-    }
+    // {
+    //   title: 'Analytics',
+    //   icon: BarChart3,
+    //   path: '/admin/analytics'
+    // },
+    // {
+    //   title: 'Transactions',
+    //   icon: CreditCard,
+    //   path: '/admin/transactions',
+    //   badge: '3'
+    // },
+    // {
+    //   title: 'Messages',
+    //   icon: MessageSquare,
+    //   path: '/admin/messages',
+    //   badge: '5'
+    // },
+    // {
+    //   title: 'Rapports',
+    //   icon: FileText,
+    //   path: '/admin/reports'
+    // }
   ];
 
   const settingsItems = [
@@ -186,8 +175,13 @@ const AdminSidebar: React.FC<AdminSidebarProps> = ({
     );
   };
 
+  // MODIFICATION PRINCIPALE ICI
+  const sidebarClasses = isMobile 
+    ? 'fixed inset-0 z-50 w-full h-screen bg-white overflow-y-auto' 
+    : `fixed left-0 top-0 h-screen z-30 bg-white border-r border-gray-100 flex flex-col shadow-sm ${sidebarOpen ? 'w-64' : 'w-20'}`;
+
   return (
-    <aside className={`h-screen bg-white border-r border-gray-100 flex flex-col shadow-sm ${isMobile ? 'w-full' : ''}`}>
+    <aside className={sidebarClasses}>
       {/* Logo et bouton toggle */}
       <div className={`p-4 border-b border-gray-100 flex items-center ${sidebarOpen ? 'justify-between' : 'justify-center'}`}>
         {sidebarOpen ? (

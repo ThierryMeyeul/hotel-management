@@ -28,7 +28,7 @@ class Payment(models.Model):
 class Invoice(models.Model):
     payment = models.OneToOneField(Payment, on_delete=models.CASCADE)
     issued_date = models.DateTimeField(auto_now_add=True)
-    Invoice_number = models.CharField(max_length=50, unique=True)
+    invoice_number = models.CharField(max_length=50, unique=True)
     total_amount = models.DecimalField(max_digits=10, decimal_places=2)
 
     def __str__(self):

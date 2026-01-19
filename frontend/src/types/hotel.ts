@@ -1,5 +1,5 @@
 export interface Hotel {
-  id: string;
+  id: number;
   name: string;
   description: string;
   address: string;
@@ -17,9 +17,12 @@ export interface Hotel {
   };
   distance: number;
   manager_id?: number;
+  manager?: any | null; 
   created_at: string;
   updated_at: string;
   is_active: boolean;
+  rooms: Room[];
+  images: HotelImage[]
 }
 
 export interface NearbySearchParams {
@@ -64,7 +67,17 @@ export interface HotelImage {
   is_cover: boolean;
 }
 
-export interface HotelDetails extends Hotel {
-  images: HotelImage[];
-  rooms: Room[];
+export interface createHotel {
+  name: string;
+  description: string;
+  address: string;
+  email: string;
+  phone: string;
+  city: string;
+  country: string;
+  website: string;
+  latitude: number;
+  longitude: number;
+  manager_id?: number;
+  is_active: boolean;
 }

@@ -28,16 +28,16 @@ const AdminLayout: React.FC = () => {
       )}
 
       <div className="flex">
-        {/* Sidebar desktop */}
-        <div className={`hidden lg:block ${sidebarOpen ? 'w-64' : 'w-20'} transition-all duration-300`}>
+        {/* Sidebar desktop - MODIFIÉ ICI */}
+        <div className={`hidden lg:block ${sidebarOpen ? 'w-64' : 'w-20'} transition-all duration-300 fixed left-0 top-0 h-screen z-30`}>
           <AdminSidebar 
             sidebarOpen={sidebarOpen} 
             onToggle={() => setSidebarOpen(!sidebarOpen)}
           />
         </div>
 
-        {/* Contenu principal */}
-        <div className="flex-1 flex flex-col min-h-screen">
+        {/* Contenu principal - MODIFIÉ ICI */}
+        <div className={`flex-1 flex flex-col min-h-screen transition-all duration-300 ${sidebarOpen ? 'lg:ml-64' : 'lg:ml-20'}`}>
           <AdminHeader 
             onMenuClick={() => setMobileSidebarOpen(true)}
             onToggleSidebar={() => setSidebarOpen(!sidebarOpen)}

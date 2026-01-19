@@ -1,2 +1,21 @@
 @import "tailwindcss";
 
+/* Leaflet styles fixes */
+.leaflet-container {
+  width: 100%;
+  height: 100%;
+}
+
+.leaflet-control-attribution {
+  font-size: 9px;
+}
+
+/* Personnalisation du marqueur */
+.leaflet-marker-icon {
+  filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));
+}
+
+/* Personnalisation du popup */
+.leaflet-popup-content {
+  font-family: system-ui, -apple-system, sans-serif;
+}

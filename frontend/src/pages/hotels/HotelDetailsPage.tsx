@@ -25,10 +25,10 @@ import {
   ExternalLink,
   Route
 } from 'lucide-react';
-import Logo from '../../components/Logo';
 import Loader from '../../components/Loader';
 import { hotelService } from '../../services/hotel.service';
 import type { Room, Hotel } from '../../types/hotel';
+import { useAuth } from '../../context/AuthContext';
 
 const HotelDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -43,6 +43,7 @@ const HotelDetailPage: React.FC = () => {
   const [isFavorite, setIsFavorite] = useState(false);
   const [userLocation, setUserLocation] = useState<{latitude: number, longitude: number} | null>(null);
   const [distance, setDistance] = useState<number | null>(null);
+  const [activeImage, setActiveImage] = useState(0);
 
   useEffect(() => {
     const fetchHotel = async () => {
@@ -67,6 +68,25 @@ const HotelDetailPage: React.FC = () => {
 
     fetchHotel();
   }, [id]);
+
+  const { user, isAuthenticated } = useAuth();
+  const getBookingRoute = () => {
+    if (isAuthenticated && user) {
+      const userRole = user.role.toLocaleLowerCase()
+
+      switch(userRole) {
+        case 'admin':
+          return '/admin/booking/create';
+        case 'director':
+          return '/director/booking/create';
+        case 'manager':
+          return '/manager/booking/create';
+        default:
+          return '/client/booking/create';
+      }
+    }
+    return '/login'
+  }
 
   const getUserLocation = () => {
     if (navigator.geolocation) {
@@ -121,22 +141,45 @@ const HotelDetailPage: React.FC = () => {
   };
 
   const handleBookNow = () => {
-    if (!selectedRoom) return;
+    if (!selectedRoom || !hotel) return;
+  
+    // Convertir le prix en nombre AVANT de l'envoyer
+    const priceNumber = parseFloat(selectedRoom.price_per_night) || 0;
     
     const bookingData = {
-      hotelId: hotel?.id,
-      hotelName: hotel?.name,
+      hotelId: hotel.id,
+      hotelName: hotel.name,
       roomId: selectedRoom.id,
       roomType: selectedRoom.room_type,
-      price: selectedRoom.price_per_night,
+      roomNumber: selectedRoom.room_number,
+      price: priceNumber, // DÉJÀ CONVERTI EN NOMBRE
       checkInDate,
       checkOutDate,
-      guests
+      guests,
+      hotelAddress: hotel.address,
+      hotelCity: hotel.city,
+      hotelCountry: hotel.country,
+      hotelImage: hotelImages[0]?.image_url || defaultImage,
+      // Informations pour la réservation selon le modèle
+      userId: localStorage.getItem('user_id'), // Récupérer l'ID de l'utilisateur connecté
+      userName: localStorage.getItem('user_name') || 'Client'
     };
-    
-    console.log('Réservation:', bookingData);
-    // Naviguer vers la page de réservation
-    navigate('/client/booking', { state: bookingData });
+  
+    // Calculer le prix total
+    const checkIn = new Date(checkInDate);
+    const checkOut = new Date(checkOutDate);
+    const nights = Math.ceil((checkOut.getTime() - checkIn.getTime()) / (1000 * 60 * 60 * 24));
+    const totalPrice = nights * priceNumber;
+  
+    const completeBookingData = {
+      ...bookingData,
+      nights,
+      totalPrice
+    };
+  
+    // Naviguer vers la route de réservation selon le rôle
+    const bookingRoute = getBookingRoute();
+    navigate(bookingRoute, { state: completeBookingData });
   };
 
   const calculateTotalPrice = () => {
@@ -146,7 +189,8 @@ const HotelDetailPage: React.FC = () => {
     const checkOut = new Date(checkOutDate);
     const nights = Math.ceil((checkOut.getTime() - checkIn.getTime()) / (1000 * 60 * 60 * 24));
     
-    return nights * parseFloat(selectedRoom.price_per_night);
+    const priceNumber = parseFloat(selectedRoom.price_per_night) || 0;
+    return nights * priceNumber;
   };
 
   const renderAmenities = () => {
@@ -162,8 +206,8 @@ const HotelDetailPage: React.FC = () => {
     return (
       <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
         {amenities.map((amenity, index) => (
-          <div key={index} className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
-            <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
+          <div key={index} className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
+            <div className={`w-10 h-10 rounded-full flex items-center justify-center transition-colors ${
               amenity.available ? 'bg-green-100 text-green-600' : 'bg-gray-100 text-gray-400'
             }`}>
               {amenity.icon}
@@ -180,21 +224,31 @@ const HotelDetailPage: React.FC = () => {
     );
   };
 
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('fr-FR', {
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric'
+    });
+  };
+
   if (loading) {
     return <Loader fullScreen text="Chargement des détails de l'hôtel..." />;
   }
 
   if (error || !hotel) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-pink-50 flex items-center justify-center">
-        <div className="text-center p-8">
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
+        <div className="text-center p-8 bg-white rounded-2xl shadow-lg max-w-md w-full">
           <X className="w-16 h-16 text-red-500 mx-auto mb-4" />
           <h2 className="text-2xl font-bold text-gray-900 mb-2">Hôtel non trouvé</h2>
           <p className="text-gray-600 mb-6">{error || "L'hôtel demandé n'existe pas."}</p>
           <Link
             to="/hotels"
-            className="px-6 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
+            className="inline-flex items-center gap-2 px-6 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors font-medium"
           >
+            <ArrowLeft className="w-4 h-4" />
             Retour à la liste des hôtels
           </Link>
         </div>
@@ -203,69 +257,42 @@ const HotelDetailPage: React.FC = () => {
   }
 
   const totalPrice = calculateTotalPrice();
+  const hotelImages = hotel.images || [];
+  const defaultImage = "/src/assets/hotel-illustration.webp";
+
+  // Fonction helper pour formater les prix
+  const formatPrice = (price: string | number): string => {
+    const priceNumber = typeof price === 'string' ? parseFloat(price) : price;
+    return isNaN(priceNumber) ? '0.00' : priceNumber.toFixed(2);
+  };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-pink-50">
-      {/* Navigation */}
-      <header className="sticky top-0 z-50 backdrop-blur-md bg-white/80 border-b border-gray-100">
-        <div className="container mx-auto px-6 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Logo />
-            </div>
-            <nav className="hidden md:flex items-center gap-8">
-              <Link to="/" className="text-gray-700 hover:text-indigo-600 font-medium transition">
-                Accueil
-              </Link>
-              <Link to="/hotels" className="text-gray-700 hover:text-indigo-600 font-medium transition">
-                Hôtels
-              </Link>
-              <Link to="/offers" className="text-gray-700 hover:text-indigo-600 font-medium transition">
-                Offres
-              </Link>
-              <Link to="/about" className="text-gray-700 hover:text-indigo-600 font-medium transition">
-                À propos
-              </Link>
-            </nav>
-            <div className="flex items-center gap-4">
-              <Link
-                to="/login"
-                className="px-4 py-2 text-gray-700 hover:text-indigo-600 font-medium transition"
-              >
-                Connexion
-              </Link>
-              <Link
-                to="/signup"
-                className="px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 font-medium transition shadow-sm"
-              >
-                Inscription
-              </Link>
-            </div>
-          </div>
-        </div>
-      </header>
-
+    <div className="min-h-screen bg-gray-50">
       {/* Bouton retour */}
-      <div className="container mx-auto px-6 py-6">
+      <div className="container mx-auto px-4 sm:px-6 py-6">
         <button
           onClick={() => navigate(-1)}
-          className="flex items-center gap-2 text-gray-600 hover:text-indigo-600 transition-colors"
+          className="flex items-center gap-2 px-4 py-2 text-gray-600 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors duration-200"
         >
           <ArrowLeft className="w-5 h-5" />
-          Retour aux résultats
+          <span className="font-medium">Retour aux résultats</span>
         </button>
       </div>
 
-      <main className="container mx-auto px-6 pb-12">
+      <main className="container mx-auto px-4 sm:px-6 pb-12">
         {/* En-tête de l'hôtel avec distance */}
         <div className="mb-8">
-          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-4">
-            <div>
-              <h1 className="text-3xl md:text-4xl font-bold text-gray-900 mb-2">{hotel.name}</h1>
-              <div className="flex items-center gap-4">
+          <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 mb-4">
+            <div className="flex-1">
+              <h1 className="text-3xl md:text-4xl font-bold text-gray-900 mb-2 leading-tight">
+                {hotel.name}
+              </h1>
+              <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-6">
                 <div className="flex items-center gap-2">
-                  <MapPin className="w-5 h-5 text-red-500" />
-                  <span className="text-gray-700">{hotel.address}, {hotel.city}, {hotel.country}</span>
+                  <MapPin className="w-5 h-5 text-red-500 flex-shrink-0" />
+                  <span className="text-gray-700">
+                    {hotel.address}, {hotel.city}, {hotel.country}
+                  </span>
                 </div>
                 <div className="flex items-center gap-1">
                   {[...Array(5)].map((_, i) => (
@@ -281,7 +308,7 @@ const HotelDetailPage: React.FC = () => {
             <div className="flex items-center gap-3">
               {/* Distance badge */}
               {distance !== null && (
-                <div className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-indigo-100 to-pink-100 text-indigo-700 rounded-full font-medium">
+                <div className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-indigo-100 to-pink-100 text-indigo-700 rounded-full font-medium shadow-sm">
                   <Navigation className="w-4 h-4" />
                   <span>{distance.toFixed(1)} km</span>
                 </div>
@@ -289,22 +316,27 @@ const HotelDetailPage: React.FC = () => {
               
               <button
                 onClick={() => setIsFavorite(!isFavorite)}
-                className={`p-3 rounded-full ${
+                className={`p-3 rounded-full transition-all duration-200 ${
                   isFavorite 
-                    ? 'bg-red-100 text-red-600' 
-                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                } transition-colors`}
+                    ? 'bg-red-100 text-red-600 hover:bg-red-200' 
+                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200 hover:text-gray-900'
+                }`}
+                aria-label={isFavorite ? "Retirer des favoris" : "Ajouter aux favoris"}
               >
                 <Heart className={`w-5 h-5 ${isFavorite ? 'fill-current' : ''}`} />
               </button>
-              <button className="p-3 bg-gray-100 text-gray-600 rounded-full hover:bg-gray-200 transition-colors">
+              
+              <button 
+                className="p-3 bg-gray-100 text-gray-600 rounded-full hover:bg-gray-200 hover:text-gray-900 transition-colors duration-200"
+                aria-label="Partager"
+              >
                 <Share2 className="w-5 h-5" />
               </button>
             </div>
           </div>
 
           {/* Status et info rapide */}
-          <div className="flex flex-wrap items-center gap-4 mb-6">
+          <div className="flex flex-wrap items-center gap-3 mb-6">
             <div className="flex items-center gap-2 px-4 py-2 bg-green-100 text-green-800 rounded-full">
               <Check className="w-4 h-4" />
               <span className="font-medium">Actif</span>
@@ -316,60 +348,94 @@ const HotelDetailPage: React.FC = () => {
                 href={getGoogleMapsUrl()}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex items-center gap-2 px-4 py-2 bg-blue-100 text-blue-700 hover:bg-blue-200 rounded-full transition-colors"
+                className="flex items-center gap-2 px-4 py-2 bg-blue-100 text-blue-700 hover:bg-blue-200 rounded-full transition-colors duration-200"
               >
                 <ExternalLink className="w-4 h-4" />
                 <span className="font-medium">
-                  {userLocation ? 'Itinéraire Google Maps' : 'Voir sur Google Maps'}
+                  {userLocation ? 'Itinéraire' : 'Google Maps'}
                 </span>
               </a>
             )}
             
-            <div className="text-gray-600">
-              <span className="font-medium">Gérant ID:</span> {hotel.manager_id}
+            <div className="text-gray-600 bg-gray-100 px-3 py-1.5 rounded-lg">
+              <span className="font-medium">Gérant ID:</span> {hotel.manager_id || 'Non assigné'}
             </div>
-            <div className="text-gray-600">
-              <span className="font-medium">Membre depuis:</span> {new Date(hotel.created_at).toLocaleDateString('fr-FR')}
+            
+            <div className="text-gray-600 bg-gray-100 px-3 py-1.5 rounded-lg">
+              <span className="font-medium">Membre depuis:</span> {formatDate(hotel.created_at)}
             </div>
           </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8">
           {/* Colonne principale - Photos et description */}
-          <div className="lg:col-span-2 space-y-8">
+          <div className="lg:col-span-2 space-y-6 lg:space-y-8">
             {/* Galerie d'images */}
             <div className="bg-white rounded-2xl shadow-lg overflow-hidden">
-              <div className="h-96 bg-gradient-to-br from-indigo-100 to-pink-50 flex items-center justify-center">
-                {hotel.images && hotel.images.length > 0 ? (
-                  <img
-                    src={hotel.images[0].image_url || "/src/assets/hotel-illustration.webp"}
-                    alt={hotel.name}
-                    className="w-full h-full object-cover"
-                  />
+              <div className="relative h-64 sm:h-80 md:h-96 bg-gradient-to-br from-indigo-100 to-pink-50">
+                {hotelImages.length > 0 ? (
+                  <>
+                    <img
+                      src={hotelImages[activeImage]?.image_url || defaultImage}
+                      alt={`${hotel.name} - Image ${activeImage + 1}`}
+                      className="w-full h-full object-cover"
+                    />
+                    {hotelImages.length > 1 && (
+                      <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex gap-2">
+                        {hotelImages.map((_, index) => (
+                          <button
+                            key={index}
+                            onClick={() => setActiveImage(index)}
+                            className={`w-3 h-3 rounded-full transition-all ${
+                              index === activeImage 
+                                ? 'bg-white scale-125' 
+                                : 'bg-white/50 hover:bg-white/75'
+                            }`}
+                            aria-label={`Voir l'image ${index + 1}`}
+                          />
+                        ))}
+                      </div>
+                    )}
+                  </>
                 ) : (
-                  <div className="text-center">
+                  <div className="w-full h-full flex flex-col items-center justify-center text-center p-6">
                     <div className="text-6xl mb-4">🏨</div>
-                    <p className="text-gray-600">Aucune image disponible</p>
+                    <p className="text-gray-600 text-lg">Aucune image disponible</p>
                   </div>
                 )}
               </div>
-              {hotel.images && hotel.images.length > 1 && (
+              
+              {hotelImages.length > 1 && (
                 <div className="grid grid-cols-4 gap-2 p-4">
-                  {/* {hotel.images.slice(1, 5).map((image, index) => (
-                    <div key={index} className="h-24 bg-gray-100 rounded-lg overflow-hidden">
-                      <img src={image} alt="" className="w-full h-full object-cover" />
-                    </div>
-                  ))} */}
+                  {hotelImages.slice(0, 4).map((image, index) => (
+                    <button
+                      key={index}
+                      onClick={() => setActiveImage(index)}
+                      className={`h-24 bg-gray-100 rounded-lg overflow-hidden transition-all ${
+                        index === activeImage 
+                          ? 'ring-2 ring-indigo-500 ring-offset-2' 
+                          : 'opacity-75 hover:opacity-100'
+                      }`}
+                    >
+                      <img 
+                        src={image.image_url || defaultImage} 
+                        alt={`Miniature ${index + 1}`} 
+                        className="w-full h-full object-cover"
+                      />
+                    </button>
+                  ))}
                 </div>
               )}
             </div>
 
             {/* Description */}
-            <div className="bg-white rounded-2xl shadow-lg p-8">
+            <div className="bg-white rounded-2xl shadow-lg p-6 md:p-8">
               <h2 className="text-2xl font-bold text-gray-900 mb-6">À propos de cet hôtel</h2>
-              <p className="text-gray-700 leading-relaxed mb-6">
-                {hotel.description || "Cet hôtel ne dispose pas encore de description détaillée."}
-              </p>
+              <div className="prose prose-gray max-w-none">
+                <p className="text-gray-700 leading-relaxed mb-6">
+                  {hotel.description || "Cet hôtel ne dispose pas encore de description détaillée."}
+                </p>
+              </div>
               
               <div className="border-t border-gray-100 pt-6">
                 <h3 className="text-xl font-semibold text-gray-900 mb-4">Équipements & Services</h3>
@@ -378,7 +444,7 @@ const HotelDetailPage: React.FC = () => {
             </div>
 
             {/* Chambres disponibles */}
-            <div className="bg-white rounded-2xl shadow-lg p-8">
+            <div className="bg-white rounded-2xl shadow-lg p-6 md:p-8">
               <h2 className="text-2xl font-bold text-gray-900 mb-6">Chambres disponibles</h2>
               
               <div className="space-y-4">
@@ -386,16 +452,16 @@ const HotelDetailPage: React.FC = () => {
                   hotel.rooms.map((room) => (
                     <div
                       key={room.id}
-                      className={`border-2 rounded-xl p-6 transition-all cursor-pointer ${
+                      className={`border-2 rounded-xl p-6 transition-all duration-200 cursor-pointer ${
                         selectedRoom?.id === room.id
                           ? 'border-indigo-500 bg-indigo-50'
-                          : 'border-gray-200 hover:border-gray-300'
+                          : 'border-gray-200 hover:border-indigo-300 hover:bg-gray-50'
                       }`}
                       onClick={() => setSelectedRoom(room)}
                     >
                       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                        <div>
-                          <div className="flex items-center gap-4 mb-2">
+                        <div className="flex-1">
+                          <div className="flex flex-col sm:flex-row sm:items-center gap-3 mb-3">
                             <h3 className="text-xl font-bold text-gray-900">{room.room_type}</h3>
                             <div className={`px-3 py-1 rounded-full text-sm font-medium ${
                               room.is_available
@@ -405,21 +471,26 @@ const HotelDetailPage: React.FC = () => {
                               {room.is_available ? 'Disponible' : 'Non disponible'}
                             </div>
                           </div>
-                          <p className="text-gray-600 mb-3">Chambre {room.room_number}</p>
+                          <div className="space-y-2">
+                            <p className="text-gray-600">
+                              <span className="font-medium">Chambre:</span> {room.room_number}
+                            </p>
+                          </div>
                         </div>
                         
-                        <div className="text-right">
+                        <div className="text-right min-w-[120px]">
                           <div className="text-3xl font-bold text-gray-900 mb-1">
-                            {parseFloat(room.price_per_night).toFixed(2)} €
+                            {formatPrice(room.price_per_night)} €
                           </div>
-                          <p className="text-gray-600">par nuit</p>
+                          <p className="text-gray-600 text-sm">par nuit</p>
                         </div>
                       </div>
                     </div>
                   ))
                 ) : (
-                  <div className="text-center py-8 text-gray-500">
-                    Aucune chambre disponible pour le moment
+                  <div className="text-center py-8 text-gray-500 bg-gray-50 rounded-xl">
+                    <div className="text-4xl mb-3">🏨</div>
+                    <p className="text-lg">Aucune chambre disponible pour le moment</p>
                   </div>
                 )}
               </div>
@@ -427,37 +498,37 @@ const HotelDetailPage: React.FC = () => {
           </div>
 
           {/* Colonne latérale - Réservation */}
-          <div className="space-y-8">
+          <div className="space-y-6 lg:space-y-8">
             {/* Formulaire de réservation */}
-            <div className="bg-white rounded-2xl shadow-lg p-6 sticky top-24">
+            <div className="bg-white rounded-2xl shadow-lg p-6 sticky top-6 lg:top-24">
               <h2 className="text-2xl font-bold text-gray-900 mb-6">Réserver maintenant</h2>
               
               <div className="space-y-6">
                 {/* Dates */}
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      <Calendar className="inline-block w-4 h-4 mr-2" />
+                    <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
+                      <Calendar className="w-4 h-4" />
                       Arrivée
                     </label>
                     <input
                       type="date"
                       value={checkInDate}
                       onChange={(e) => setCheckInDate(e.target.value)}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-colors"
                       min={new Date().toISOString().split('T')[0]}
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      <Calendar className="inline-block w-4 h-4 mr-2" />
+                    <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
+                      <Calendar className="w-4 h-4" />
                       Départ
                     </label>
                     <input
                       type="date"
                       value={checkOutDate}
                       onChange={(e) => setCheckOutDate(e.target.value)}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-colors"
                       min={checkInDate || new Date().toISOString().split('T')[0]}
                     />
                   </div>
@@ -465,25 +536,28 @@ const HotelDetailPage: React.FC = () => {
 
                 {/* Nombre de personnes */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    <Users className="inline-block w-4 h-4 mr-2" />
+                  <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
+                    <Users className="w-4 h-4" />
                     Voyageurs
                   </label>
-                  <div className="flex items-center gap-4">
+                  <div className="flex items-center justify-between bg-gray-50 p-4 rounded-lg">
                     <button
                       onClick={() => setGuests(Math.max(1, guests - 1))}
-                      className="w-10 h-10 flex items-center justify-center bg-gray-100 rounded-lg hover:bg-gray-200"
+                      className="w-10 h-10 flex items-center justify-center bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                      disabled={guests <= 1}
                     >
                       −
                     </button>
-                    <span className="text-xl font-bold text-gray-900">{guests}</span>
+                    <div className="text-center">
+                      <span className="text-3xl font-bold text-gray-900">{guests}</span>
+                      <p className="text-gray-600 text-sm">personne{guests > 1 ? 's' : ''}</p>
+                    </div>
                     <button
                       onClick={() => setGuests(guests + 1)}
-                      className="w-10 h-10 flex items-center justify-center bg-gray-100 rounded-lg hover:bg-gray-200"
+                      className="w-10 h-10 flex items-center justify-center bg-white border border-gray-300 rounded-lg hover:bg-gray-50"
                     >
                       +
                     </button>
-                    <span className="text-gray-600 ml-2">personne{guests > 1 ? 's' : ''}</span>
                   </div>
                 </div>
 
@@ -491,11 +565,11 @@ const HotelDetailPage: React.FC = () => {
                 {selectedRoom && (
                   <div className="border-t border-gray-100 pt-6">
                     <h3 className="font-medium text-gray-900 mb-3">Chambre sélectionnée</h3>
-                    <div className="bg-gray-50 rounded-lg p-4">
+                    <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
                       <div className="flex justify-between items-center mb-2">
                         <span className="font-medium">{selectedRoom.room_type}</span>
                         <span className="font-bold text-gray-900">
-                          {parseFloat(selectedRoom.price_per_night).toFixed(2)} €/nuit
+                          {formatPrice(selectedRoom.price_per_night)} €/nuit
                         </span>
                       </div>
                       <p className="text-sm text-gray-600">Chambre {selectedRoom.room_number}</p>
@@ -507,14 +581,23 @@ const HotelDetailPage: React.FC = () => {
                 {(checkInDate && checkOutDate && selectedRoom) && (
                   <div className="border-t border-gray-100 pt-6">
                     <h3 className="font-medium text-gray-900 mb-3">Résumé</h3>
-                    <div className="space-y-2">
+                    <div className="space-y-3">
                       <div className="flex justify-between">
-                        <span className="text-gray-600">{selectedRoom.price_per_night} € × {Math.ceil((new Date(checkOutDate).getTime() - new Date(checkInDate).getTime()) / (1000 * 60 * 60 * 24))} nuits</span>
+                        <span className="text-gray-600">Prix par nuit</span>
+                        <span className="font-medium">{formatPrice(selectedRoom.price_per_night)} €</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">
+                          {Math.ceil((new Date(checkOutDate).getTime() - new Date(checkInDate).getTime()) / (1000 * 60 * 60 * 24))} nuit(s)
+                        </span>
                         <span className="font-medium">{totalPrice.toFixed(2)} €</span>
                       </div>
-                      <div className="flex justify-between text-lg font-bold text-gray-900 pt-2 border-t border-gray-100">
-                        <span>Total</span>
-                        <span>{totalPrice.toFixed(2)} €</span>
+                      <div className="border-t border-gray-200 pt-3">
+                        <div className="flex justify-between text-lg font-bold text-gray-900">
+                          <span>Total</span>
+                          <span>{totalPrice.toFixed(2)} €</span>
+                        </div>
+                        <p className="text-sm text-gray-500 mt-1">TVA incluse</p>
                       </div>
                     </div>
                   </div>
@@ -524,9 +607,9 @@ const HotelDetailPage: React.FC = () => {
                 <button
                   onClick={handleBookNow}
                   disabled={!selectedRoom?.is_available || !checkInDate || !checkOutDate}
-                  className={`w-full py-4 rounded-xl font-bold text-lg transition-all ${
+                  className={`w-full py-4 rounded-xl font-bold text-lg transition-all duration-200 ${
                     selectedRoom?.is_available && checkInDate && checkOutDate
-                      ? 'bg-gradient-to-r from-indigo-600 to-pink-600 text-white hover:from-indigo-700 hover:to-pink-700 shadow-lg hover:shadow-xl'
+                      ? 'bg-gradient-to-r from-indigo-600 to-pink-600 text-white hover:from-indigo-700 hover:to-pink-700 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5'
                       : 'bg-gray-200 text-gray-500 cursor-not-allowed'
                   }`}
                 >
@@ -534,10 +617,10 @@ const HotelDetailPage: React.FC = () => {
                 </button>
 
                 {/* Sécurité */}
-                <div className="flex items-center justify-center gap-2 text-sm text-gray-500">
-                  <Shield className="w-4 h-4" />
+                <div className="flex items-center justify-center gap-2 text-sm text-gray-500 pt-4">
+                  <Shield className="w-4 h-4 text-green-500" />
                   <span>Paiement 100% sécurisé</span>
-                  <CreditCard className="w-4 h-4 ml-2" />
+                  <CreditCard className="w-4 h-4 text-blue-500" />
                 </div>
               </div>
             </div>
@@ -545,24 +628,28 @@ const HotelDetailPage: React.FC = () => {
             {/* Informations de contact */}
             <div className="bg-white rounded-2xl shadow-lg p-6">
               <h3 className="text-xl font-bold text-gray-900 mb-4">Contact</h3>
-              <div className="space-y-4">
+              <div className="space-y-3">
                 {hotel.email && (
                   <a
                     href={`mailto:${hotel.email}`}
-                    className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
+                    className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg hover:bg-blue-50 hover:text-blue-700 transition-colors duration-200 group"
                   >
-                    <Mail className="w-5 h-5 text-blue-600" />
-                    <span className="text-gray-700">{hotel.email}</span>
+                    <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center group-hover:bg-blue-200 transition-colors">
+                      <Mail className="w-5 h-5 text-blue-600" />
+                    </div>
+                    <span className="text-gray-700 font-medium">{hotel.email}</span>
                   </a>
                 )}
                 
                 {hotel.phone && (
                   <a
                     href={`tel:${hotel.phone}`}
-                    className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
+                    className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg hover:bg-green-50 hover:text-green-700 transition-colors duration-200 group"
                   >
-                    <Phone className="w-5 h-5 text-green-600" />
-                    <span className="text-gray-700">{hotel.phone}</span>
+                    <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center group-hover:bg-green-200 transition-colors">
+                      <Phone className="w-5 h-5 text-green-600" />
+                    </div>
+                    <span className="text-gray-700 font-medium">{hotel.phone}</span>
                   </a>
                 )}
                 
@@ -571,15 +658,19 @@ const HotelDetailPage: React.FC = () => {
                     href={hotel.website}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
+                    className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg hover:bg-indigo-50 hover:text-indigo-700 transition-colors duration-200 group"
                   >
-                    <Globe className="w-5 h-5 text-indigo-600" />
-                    <span className="text-gray-700">Visiter le site web</span>
+                    <div className="w-10 h-10 bg-indigo-100 rounded-lg flex items-center justify-center group-hover:bg-indigo-200 transition-colors">
+                      <Globe className="w-5 h-5 text-indigo-600" />
+                    </div>
+                    <span className="text-gray-700 font-medium">Visiter le site web</span>
                   </a>
                 )}
                 
                 <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
-                  <MapPin className="w-5 h-5 text-red-600" />
+                  <div className="w-10 h-10 bg-red-100 rounded-lg flex items-center justify-center">
+                    <MapPin className="w-5 h-5 text-red-600" />
+                  </div>
                   <div>
                     <p className="text-gray-700 font-medium">{hotel.address}</p>
                     <p className="text-gray-600 text-sm">{hotel.city}, {hotel.country}</p>
@@ -591,7 +682,7 @@ const HotelDetailPage: React.FC = () => {
             {/* Carte de localisation */}
             {hotel.latitude && hotel.longitude && (
               <div className="bg-white rounded-2xl shadow-lg p-6">
-                <div className="flex items-center justify-between mb-4">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
                   <h3 className="text-xl font-bold text-gray-900">Localisation</h3>
                   
                   {/* Bouton d'itinéraire */}
@@ -599,47 +690,35 @@ const HotelDetailPage: React.FC = () => {
                     href={getGoogleMapsUrl()}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-indigo-600 to-pink-600 text-white rounded-lg hover:from-indigo-700 hover:to-pink-700 transition-all"
+                    className="flex items-center justify-center gap-2 px-4 py-2 bg-gradient-to-r from-indigo-600 to-pink-600 text-white rounded-lg hover:from-indigo-700 hover:to-pink-700 transition-all duration-200 shadow-sm hover:shadow"
                   >
                     <Route className="w-4 h-4" />
                     <span className="font-medium">Itinéraire</span>
                   </a>
                 </div>
                 
-                <div className="h-64 bg-gradient-to-br from-indigo-100 to-pink-50 rounded-lg flex items-center justify-center relative">
-                  {/* Indicateur de distance */}
-                  {distance !== null && (
-                    <div className="absolute top-4 left-4 z-10 bg-white/90 backdrop-blur-sm px-4 py-2 rounded-lg shadow-lg">
-                      <div className="flex items-center gap-2">
-                        <Navigation className="w-4 h-4 text-indigo-600" />
-                        <span className="font-bold text-gray-900">{distance.toFixed(1)} km</span>
-                        <span className="text-gray-600 text-sm">de votre position</span>
-                      </div>
-                    </div>
-                  )}
+                <div className="bg-gradient-to-br from-indigo-50 to-pink-50 rounded-xl p-6 text-center">
+                  <MapPin className="w-12 h-12 text-red-500 mx-auto mb-4" />
                   
-                  <div className="text-center">
-                    <MapPin className="w-12 h-12 text-red-500 mx-auto mb-2" />
-                    <p className="text-gray-700 font-medium">Lat: {hotel.latitude.toFixed(6)}</p>
-                    <p className="text-gray-700 font-medium">Lng: {hotel.longitude.toFixed(6)}</p>
+                  <div className="space-y-3">
+                    <div>
+                      <p className="text-sm text-gray-600 mb-1">Latitude</p>
+                      <p className="font-mono font-medium text-gray-800">{hotel.latitude.toFixed(6)}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-600 mb-1">Longitude</p>
+                      <p className="font-mono font-medium text-gray-800">{hotel.longitude.toFixed(6)}</p>
+                    </div>
                     
-                    {userLocation && (
-                      <div className="mt-4 text-sm text-gray-600">
-                        <p>Votre position: {userLocation.latitude.toFixed(4)}, {userLocation.longitude.toFixed(4)}</p>
+                    {distance !== null && (
+                      <div className="pt-4 border-t border-gray-200">
+                        <div className="flex items-center justify-center gap-2">
+                          <Navigation className="w-5 h-5 text-indigo-600" />
+                          <span className="font-bold text-gray-900">{distance.toFixed(1)} km</span>
+                          <span className="text-gray-600 text-sm">de votre position</span>
+                        </div>
                       </div>
                     )}
-                  </div>
-                </div>
-                
-                {/* Infos supplémentaires */}
-                <div className="mt-4 grid grid-cols-2 gap-4 text-sm">
-                  <div className="bg-gray-50 p-3 rounded-lg">
-                    <p className="font-medium text-gray-900">Coordonnées GPS</p>
-                    <p className="text-gray-600">{hotel.latitude.toFixed(6)}, {hotel.longitude.toFixed(6)}</p>
-                  </div>
-                  <div className="bg-gray-50 p-3 rounded-lg">
-                    <p className="font-medium text-gray-900">Format</p>
-                    <p className="text-gray-600">WGS 84 (SRID: 4326)</p>
                   </div>
                 </div>
               </div>
@@ -647,99 +726,6 @@ const HotelDetailPage: React.FC = () => {
           </div>
         </div>
       </main>
-
-      {/* CTA Section */}
-      <section className="py-12 bg-gradient-to-r from-indigo-500 to-pink-500 mt-12">
-        <div className="container mx-auto px-6 text-center">
-          <h2 className="text-3xl font-bold text-white mb-6">Questions sur votre réservation ?</h2>
-          <p className="text-xl text-indigo-100 max-w-2xl mx-auto mb-8">
-            Notre équipe de support est disponible 24h/24 pour vous aider
-          </p>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Link
-              to="/contact"
-              className="px-8 py-3 bg-white text-indigo-600 text-lg font-medium rounded-lg hover:bg-gray-100 transition shadow-lg"
-            >
-              Contacter le support
-            </Link>
-            <Link
-              to="/hotels"
-              className="px-8 py-3 border-2 border-white text-white text-lg font-medium rounded-lg hover:bg-white/10 transition"
-            >
-              Voir d'autres hôtels
-            </Link>
-          </div>
-        </div>
-      </section>
-
-      {/* Footer */}
-      <footer className="bg-gray-900 text-white py-12">
-        <div className="container mx-auto px-6">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
-            <div>
-              <div className="flex items-center gap-2 mb-4">
-                <Logo />
-              </div>
-              <p className="text-gray-400">
-                Votre partenaire de confiance pour des séjours inoubliables.
-              </p>
-            </div>
-            <div>
-              <h4 className="text-lg font-semibold mb-4">Navigation</h4>
-              <ul className="space-y-2">
-                <li>
-                  <Link to="/" className="text-gray-400 hover:text-white transition">
-                    Accueil
-                  </Link>
-                </li>
-                <li>
-                  <Link to="/hotels" className="text-gray-400 hover:text-white transition">
-                    Hôtels
-                  </Link>
-                </li>
-                <li>
-                  <Link to="/about" className="text-gray-400 hover:text-white transition">
-                    À propos
-                  </Link>
-                </li>
-              </ul>
-            </div>
-            <div>
-              <h4 className="text-lg font-semibold mb-4">Légal</h4>
-              <ul className="space-y-2">
-                <li>
-                  <Link to="/privacy" className="text-gray-400 hover:text-white transition">
-                    Politique de confidentialité
-                  </Link>
-                </li>
-                <li>
-                  <Link to="/terms" className="text-gray-400 hover:text-white transition">
-                    Conditions d'utilisation
-                  </Link>
-                </li>
-                <li>
-                  <Link to="/cookies" className="text-gray-400 hover:text-white transition">
-                    Cookies
-                  </Link>
-                </li>
-              </ul>
-            </div>
-            <div>
-              <h4 className="text-lg font-semibold mb-4">Contact</h4>
-              <p className="text-gray-400">
-                📞 01 23 45 67 89
-                <br />
-                ✉️ contact@hotelsphere.com
-                <br />
-                🏢 123 Avenue des Champs, Paris
-              </p>
-            </div>
-          </div>
-          <div className="border-t border-gray-800 mt-8 pt-8 text-center text-gray-400">
-            <p>© {new Date().getFullYear()} HotelSphere. Tous droits réservés.</p>
-          </div>
-        </div>
-      </footer>
     </div>
   );
 };

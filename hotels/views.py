@@ -28,6 +28,12 @@ class HotelViewSet(viewsets.ModelViewSet):
         if manager and getattr(manager, 'role', None) != 'DIRECTOR':
             raise ValidationError({'manager': 'Only a DIRECTOR can be assigned as manager.'})
         serializer.save()
+        
+    @action(detail=False, methods=['get'], url_path='no-manager')
+    def hotels_without_manager(self, request):
+        hotels = Hotel.objects.filter(manager__isnull=True, is_active=True)
+        serializer = self.get_serializer(hotels, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
     @action(detail=True, methods=['post'], permission_classes=[HotelPermission])
     def assign_manager(self, request, pk=None):
