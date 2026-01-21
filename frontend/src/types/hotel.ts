@@ -15,13 +15,13 @@ export interface Hotel {
     type: 'Point';
     coordinates: [number, number];
   };
-  distance: number;
+  distance: number ;
   manager_id?: number;
   manager?: any | null; 
   created_at: string;
   updated_at: string;
   is_active: boolean;
-  rooms: Room[];
+  rooms?: Room[];
   images: HotelImage[]
 }
 
@@ -58,11 +58,29 @@ export interface Room {
   room_type: string;
   price_per_night: string;
   is_available: boolean;
+  capacity?: number;
+  description?: string;
+  amenities?: string[];
+  size: number;
 }
+
+export interface CreateRoomData {
+  hotel: number;
+  room_number: string;
+  room_type: string;
+  price_per_night: number;
+  capacity: number;
+  size: string;
+  description: string;
+  amenities: string[];
+  is_available: boolean;
+}
+
+export interface UpdateRoomData extends Partial<CreateRoomData> {}
 
 export interface HotelImage {
   id: number;
-  image_url: string;
+  image: string;
   caption?: string;
   is_cover: boolean;
 }
@@ -81,3 +99,15 @@ export interface createHotel {
   manager_id?: number;
   is_active: boolean;
 }
+
+export type HotelUpdateForm = {
+  name: string;
+  address: string;
+  description: string;
+  city: string;
+  country: string;
+  email?: string | null;
+  phone?: string | null;
+  website?: string | null;
+  is_active: boolean;
+};

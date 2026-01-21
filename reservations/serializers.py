@@ -16,5 +16,6 @@ class ReservationSerializer(serializers.ModelSerializer):
             'total_price',
             'created_at',
             'updated_at',
+            'hotel_name',
         ]
         read_only_fields = ['id', 'created_at', 'updated_at']

@@ -342,7 +342,7 @@ const HotelDetailPage: React.FC = () => {
               <div className="h-96 bg-gradient-to-br from-indigo-100 to-pink-50 flex items-center justify-center">
                 {hotel.images && hotel.images.length > 0 ? (
                   <img
-                    src={hotel.images[0].image_url || "/src/assets/hotel-illustration.webp"}
+                    src={hotel.images[0].image || "/src/assets/hotel-illustration.webp"}
                     alt={hotel.name}
                     className="w-full h-full object-cover"
                   />

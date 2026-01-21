@@ -13,6 +13,7 @@ import HotelDetailsPage from "../pages/hotels/HotelDetails";
 
 import ClientRoutes from "./ClientRoute";
 import AdminRoutes from "./AdminRoute";
+import DirectorRoutes from "./DirectorRoute";
 
 export default function AppRoutes() {
   return (
@@ -32,6 +33,15 @@ export default function AppRoutes() {
         element={
           <RoleRoute requiredRole="ADMIN">
             <AdminRoutes />
+          </RoleRoute>
+        }
+      />
+
+      <Route
+        path="/director/*"
+        element={
+          <RoleRoute requiredRole="DIRECTOR">
+            <DirectorRoutes />
           </RoleRoute>
         }
       />

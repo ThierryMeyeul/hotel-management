@@ -32,6 +32,7 @@ import {
 import Loader from '../../components/Loader';
 import { bookingService } from '../../services/booking.service';
 import type { Reservation, Payment } from '../../types/booking';
+import { useAuth } from '../../context/AuthContext'; // IMPORT AJOUTÉ
 
 interface ReservationWithDetails extends Reservation {
   hotel_name?: string;
@@ -48,6 +49,7 @@ interface ReservationWithDetails extends Reservation {
 
 const AdminReservationsPage: React.FC = () => {
   const navigate = useNavigate();
+  const { user } = useAuth(); // AJOUTÉ pour récupérer l'utilisateur connecté
   const [loading, setLoading] = useState(true);
   const [reservations, setReservations] = useState<ReservationWithDetails[]>([]);
   const [filteredReservations, setFilteredReservations] = useState<ReservationWithDetails[]>([]);
@@ -66,6 +68,46 @@ const AdminReservationsPage: React.FC = () => {
     completed: 0,
     revenue: 0
   });
+
+  // AJOUTÉ: Fonction pour déterminer la route de redirection
+  const getHotelsRoute = () => {
+    if (!user) return '/login';
+    
+    const userRole = user.role.toLowerCase();
+    
+    switch(userRole) {
+      case 'admin':
+        return '/admin/hotels';
+      case 'director':
+        return '/director/hotels';
+      case 'manager':
+        return '/manager/hotels';
+      case 'client':
+        return '/client/hotels';
+      default:
+        return '/hotels'; // Page publique des hôtels
+    }
+  };
+
+  // AJOUTÉ: Fonction pour déterminer la route de nouvelle réservation
+  const getNewBookingRoute = () => {
+    if (!user) return '/login';
+    
+    const userRole = user.role.toLowerCase();
+    
+    switch(userRole) {
+      case 'admin':
+        return '/admin/booking'; // Ou '/admin/bookings/create'
+      case 'director':
+        return '/director/booking';
+      case 'manager':
+        return '/manager/booking';
+      case 'client':
+        return '/client/booking';
+      default:
+        return '/booking'; // Page publique de réservation
+    }
+  };
 
   useEffect(() => {
     fetchMyReservations();
@@ -344,6 +386,17 @@ const AdminReservationsPage: React.FC = () => {
               <p className="text-gray-600">
                 {reservations.length} réservation{reservations.length > 1 ? 's' : ''} personnelle{reservations.length > 1 ? 's' : ''}
               </p>
+              {/* AJOUTÉ: Affichage du rôle de l'utilisateur */}
+              {user && (
+                <div className="flex items-center gap-2 mt-1">
+                  <div className="text-xs px-2 py-1 bg-blue-100 text-blue-800 rounded-full">
+                    Connecté en tant que: {user.role}
+                  </div>
+                  <div className="text-xs px-2 py-1 bg-gray-100 text-gray-800 rounded-full">
+                    ID: {user.id}
+                  </div>
+                </div>
+              )}
             </div>
             
             <div className="flex items-center gap-3">
@@ -363,8 +416,9 @@ const AdminReservationsPage: React.FC = () => {
                 Actualiser
               </button>
               
+              {/* MODIFIÉ: Bouton Nouvelle réservation avec redirection dynamique */}
               <button
-                onClick={() => navigate('/admin/hotels')}
+                onClick={() => navigate(getHotelsRoute())}
                 className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-indigo-600 to-pink-600 text-white rounded-lg hover:from-indigo-700 hover:to-pink-700 transition-colors"
               >
                 <Plus className="w-4 h-4" />
@@ -622,8 +676,9 @@ const AdminReservationsPage: React.FC = () => {
                             ? 'Aucune réservation ne correspond à vos filtres'
                             : 'Réservez votre premier séjour !'}
                         </p>
+                        {/* MODIFIÉ: Bouton Voir les hôtels avec redirection dynamique */}
                         <button
-                          onClick={() => navigate('/admin/hotels')}
+                          onClick={() => navigate(getHotelsRoute())}
                           className="mt-4 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
                         >
                           Voir les hôtels disponibles

@@ -13,6 +13,8 @@ interface User {
   username: string;
   email: string;
   role: 'ADMIN' | 'CLIENT' | 'DIRECTOR';
+  first_name: string;
+  last_name: string;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);

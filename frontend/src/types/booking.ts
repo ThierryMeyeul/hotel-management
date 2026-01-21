@@ -75,3 +75,43 @@ export interface HotelBookingData {
   nights?: number;
   totalPrice?: number;
 }
+
+export interface Booking {
+  id: number;
+  guest_name?: string;
+  guest_email?: string;
+  hotel_name?: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone: string;
+  status?: string;
+  check_in_date?: string;
+  check_out_date?: string;
+  total_price: string;
+  specialRequests: string;
+  paymentMethod: 'CREDIT_CARD' | 'PAYPAL' | 'BANK_TRANSFER' | 'MOBILE_MONEY';
+  cardNumber?: string;
+  cardExpiry?: string;
+  cardCvc?: string;
+  cardName?: string;
+  agreeTerms: boolean;
+}
+
+export interface ReservationHotel {
+  id: number;
+  hotel_name: string;
+  room_number: string;
+  customer_name: string;
+  customer_email: string;
+  customer_phone: string;
+  check_in: string;
+  check_out: string;
+  total_price: string;
+  status: 'PENDING' | 'CONFIRMED' | 'CHECKED_IN' | 'CHECKED_OUT' | 'CANCELLED';
+  payment_status: 'PENDING' | 'PAID' | 'PARTIALLY_PAID' | 'REFUNDED';
+  capacity: number;
+  special_requests: string | null;
+  created_at: string;
+  updated_at: string;
+}

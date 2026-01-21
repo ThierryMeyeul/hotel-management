@@ -37,3 +37,16 @@ class ReservationViewSet(viewsets.ModelViewSet):
         serializer = self.get_serializer(reservations, many=True)
         return Response(serializer.data)
     
+    @action(detail=False, methods=['get'], url_path='by-hotel')
+    def by_hotel(self, request):
+        hotel_name = request.query_params.get('hotel_name')
+        if not hotel_name:
+            return Response({"error": "hotel_name parameter is required"}, status=400)
+    
+        reservations = Reservation.objects.filter(
+            room__hotel__isnull=False,
+            room__hotel__name__iexact=hotel_name
+        )
+    
+        serializer = self.get_serializer(reservations, many=True)
+        return Response(serializer.data)

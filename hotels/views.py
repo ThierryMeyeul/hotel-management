@@ -13,7 +13,7 @@ from .utils.geolocation import get_nearby_hotels
 user = get_user_model()
 
 class HotelViewSet(viewsets.ModelViewSet): 
-    queryset = Hotel.objects.filter(is_active=True)
+    queryset = Hotel.objects.filter()
     serializer_class = HotelSerializer
     permission_classes = [HotelPermission]
     
@@ -52,6 +52,23 @@ class HotelViewSet(viewsets.ModelViewSet):
         hotel.save()
         
         return Response({'detail': f'Manager {manager.username} assigned to hotel {hotel.name}.'})
+    
+    
+    @action(detail=False, methods=['get'], url_path='my-hotels')
+    def my_hotels(self, request):
+        """
+        Retourne la liste des hôtels gérés par le directeur connecté.
+        """
+        user = request.user
+
+        # Vérifie si l'utilisateur est bien un directeur
+        if getattr(user, 'role', None) != 'DIRECTOR':
+            return Response({"detail": "Vous n'êtes pas autorisé à voir cette liste."},
+                            status=status.HTTP_403_FORBIDDEN)
+
+        hotels = Hotel.objects.filter(manager=user)
+        serializer = self.get_serializer(hotels, many=True)
+        return Response(serializer.data)
     
     @action(detail=False, methods=['get'], url_path='nearby')
     def nearby_hotels(self, request):

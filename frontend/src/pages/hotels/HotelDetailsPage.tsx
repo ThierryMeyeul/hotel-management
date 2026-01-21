@@ -159,7 +159,7 @@ const HotelDetailPage: React.FC = () => {
       hotelAddress: hotel.address,
       hotelCity: hotel.city,
       hotelCountry: hotel.country,
-      hotelImage: hotelImages[0]?.image_url || defaultImage,
+      hotelImage: hotelImages[0]?.image || defaultImage,
       // Informations pour la réservation selon le modèle
       userId: localStorage.getItem('user_id'), // Récupérer l'ID de l'utilisateur connecté
       userName: localStorage.getItem('user_name') || 'Client'
@@ -376,7 +376,7 @@ const HotelDetailPage: React.FC = () => {
                 {hotelImages.length > 0 ? (
                   <>
                     <img
-                      src={hotelImages[activeImage]?.image_url || defaultImage}
+                      src={hotelImages[activeImage]?.image || defaultImage}
                       alt={`${hotel.name} - Image ${activeImage + 1}`}
                       className="w-full h-full object-cover"
                     />
@@ -418,7 +418,7 @@ const HotelDetailPage: React.FC = () => {
                       }`}
                     >
                       <img 
-                        src={image.image_url || defaultImage} 
+                        src={image.image || defaultImage} 
                         alt={`Miniature ${index + 1}`} 
                         className="w-full h-full object-cover"
                       />

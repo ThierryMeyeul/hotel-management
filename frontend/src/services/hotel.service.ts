@@ -1,5 +1,5 @@
 import api from "../api/axios"
-import type { Hotel, NearbySearchParams, NearbyHotelResponse, createHotel } from "../types/hotel";
+import type { Hotel, NearbySearchParams, NearbyHotelResponse, createHotel, HotelImage, UpdateRoomData, CreateRoomData, HotelUpdateForm } from "../types/hotel";
 import { getAccess } from "./auth.service";
 
 
@@ -75,6 +75,83 @@ export const hotelService = {
         } catch (error: any) {
             throw new Error(error.response?.data?.detail || "Erreur lors de la création de l'hôtel");
         }
-    }
+    },
 
+    async getDirectorHotels() {
+        try {
+            const response = await api.get('/hotels/my-hotels/')
+            return response.data
+        } catch (error: any) {
+            throw new Error(error.response?.data?.detail || "Erreur lors de la création de l'hôtel");
+        }
+    },
+    
+    async updateHotelStatus(id: number, is_active: boolean): Promise<Hotel> {
+        try {
+            const response = await api.patch(`/hotels/${id}/`, {
+                is_active: is_active
+            });
+            return response.data
+        } catch (error: any) {
+            throw new Error(error.response?.data?.detail || "Erreur lors de la création de l'hôtel");
+        }
+    },
+
+    async addHotelImage(hotelId: number, imageData: FormData): Promise<HotelImage> {
+        try {
+            const response = await api.post(`/hotels/${hotelId}/images/`, imageData, {
+                headers: {
+                    'Content-Type': 'multipart/form-data',
+                },
+            });
+            return response.data
+        } catch (error: any) {
+            throw new Error(error.response?.data?.detail || "Erreur lors de la création de l'hôtel");
+        }
+    },
+
+    async deleteHotelImage(hotelId: number, id: number) {
+        try {
+            const response = await api.delete(`/hotels/${hotelId}/images/${id}/`, );
+            return response.data
+        } catch (error: any) {
+            throw new Error(error.response?.data?.detail || "Erreur lors de la création de l'hôtel");
+        }
+    },
+
+    async getRoomById(hotelId: number, id: number) {
+        try {
+            const response = await api.get(`/hotels/${hotelId}/rooms/${id}/`, );
+            return response.data
+        } catch (error: any) {
+            throw new Error(error.response?.data?.detail || "Erreur lors de la création de l'hôtel");
+        }
+    },
+
+    async updateRoom(hotelId: number, id: number, roomData: UpdateRoomData) {
+        try {
+            const response = await api.put(`/hotels/${hotelId}/rooms/${id}/`, roomData);
+            return response.data
+        } catch (error: any) {
+            throw new Error(error.response?.data?.detail || "Erreur lors de la création de l'hôtel");
+        }
+    },
+
+    async createRoom(hotelId: number, roomData: CreateRoomData) {
+        try {
+            const response = await api.post(`/hotels/${hotelId}/rooms/`, roomData);
+            return response.data
+        } catch (error: any) {
+            throw new Error(error.response?.data?.detail || "Erreur lors de la création de l'hôtel");
+        }
+    },
+
+    async updateHotel(id: number, hotelData: HotelUpdateForm) {
+        try {
+            const response = await api.patch(`/hotels/${id}/`, hotelData);
+            return response.data
+        } catch (error: any) {
+            throw new Error(error.response?.data?.detail || "Erreur lors de la création de l'hôtel");
+        }
+    }
 };

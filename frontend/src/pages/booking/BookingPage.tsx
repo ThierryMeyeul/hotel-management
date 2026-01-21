@@ -200,6 +200,7 @@ const BookingPage: React.FC = () => {
         room: bookingData.roomId,
         check_in: bookingData.checkInDate,
         check_out: bookingData.checkOutDate,
+        hotel_name: bookingData.hotelName,
         total_price: totalPrice,
         status: 'CONFIRMED' // DIRECTEMENT CONFIRMÉ
       };
@@ -260,10 +261,10 @@ const BookingPage: React.FC = () => {
         return '/admin/bookings';
       case 'director':
         return '/director/bookings';
-      case 'manager':
-        return '/manager/bookings';
+      case 'client':
+        return '/client/bookings';
       default:
-        return '/client/my-bookings';
+        return '/client/bookings';
     }
   };
 

@@ -1,34 +1,33 @@
+// src/components/director/layout/DirectorSidebar.tsx
 import React from 'react';
 import { NavLink } from 'react-router-dom';
 import { 
   LayoutDashboard,
   Building,
-  Users,
   Calendar,
-  UserCog,
-  BarChart3,
+  Bed,
+  Image as ImageIcon,
   Settings,
-  FileText,
-  Shield,
-  CreditCard,
-  MessageSquare,
   HelpCircle,
   ChevronLeft,
   ChevronRight,
-  Home,
   PlusCircle,
   List,
-  Sparkles
+  Users,
+  Sparkles,
+  Home,
+  FileText,
+  BarChart3
 } from 'lucide-react';
 
-interface AdminSidebarProps {
+interface DirectorSidebarProps {
   sidebarOpen: boolean;
   onToggle?: () => void;
   onClose?: () => void;
   isMobile?: boolean;
 }
 
-const AdminSidebar: React.FC<AdminSidebarProps> = ({
+const DirectorSidebar: React.FC<DirectorSidebarProps> = ({
   sidebarOpen,
   onToggle,
   onClose,
@@ -38,67 +37,53 @@ const AdminSidebar: React.FC<AdminSidebarProps> = ({
     {
       title: 'Dashboard',
       icon: LayoutDashboard,
-      path: '/admin/dashboard',
+      path: '/director/dashboard',
       badge: null
     },
     {
-      title: 'Hôtels',
+      title: 'Mes Hôtels',
       icon: Building,
-      path: '/admin/hotels',
-      subItems: [
-        { title: 'Liste des hôtels', path: '/admin/hotels', icon: List },
-        { title: 'Ajouter un hôtel', path: '/admin/hotels/create', icon: PlusCircle },
-      ]
+      path: '/director/hotels',
     },
     {
       title: 'Réservations',
       icon: Calendar,
-      path: '/admin/bookings',
+      path: '/director/bookings',
+      subItems: [
+        { title: 'Toutes les réservations', path: '/director/bookings', icon: List },
+        { title: 'Réservations en cours', path: '/director/bookings/active', icon: Calendar },
+        { title: 'Historique', path: '/director/bookings/history', icon: FileText }
+      ],
       badge: '12'
     },
     {
-      title: 'Managers',
-      icon: UserCog,
-      path: '/admin/managers',
+      title: 'Chambres',
+      icon: Bed,
+      path: '/director/rooms',
       subItems: [
-        { title: 'Assigner manager', path: '/admin/managers/assign', icon: UserCog },
-        { title: 'Liste managers', path: '/admin/managers', icon: List }
+        { title: 'Gestion des chambres', path: '/director/rooms', icon: List },
+        { title: 'Types de chambres', path: '/director/rooms/types', icon: Bed },
+        { title: 'Disponibilités', path: '/director/rooms/availability', icon: Calendar }
       ]
     },
-    // {
-    //   title: 'Analytics',
-    //   icon: BarChart3,
-    //   path: '/admin/analytics'
-    // },
-    // {
-    //   title: 'Transactions',
-    //   icon: CreditCard,
-    //   path: '/admin/transactions',
-    //   badge: '3'
-    // },
-    // {
-    //   title: 'Messages',
-    //   icon: MessageSquare,
-    //   path: '/admin/messages',
-    //   badge: '5'
-    // },
-    // {
-    //   title: 'Rapports',
-    //   icon: FileText,
-    //   path: '/admin/reports'
-    // }
+    {
+      title: 'Clients',
+      icon: Users,
+      path: '/director/customers',
+      badge: '8'
+    }
   ];
 
   const settingsItems = [
     {
       title: 'Paramètres',
       icon: Settings,
-      path: '/admin/settings'
+      path: '/director/settings'
     },
     {
       title: 'Aide & Support',
       icon: HelpCircle,
-      path: '/admin/help'
+      path: '/director/help'
     }
   ];
 
@@ -112,8 +97,8 @@ const AdminSidebar: React.FC<AdminSidebarProps> = ({
             onClick={() => setSubMenuOpen(!subMenuOpen)}
             className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg transition-all duration-200 ${
               sidebarOpen 
-                ? 'hover:bg-indigo-50 text-gray-700 hover:text-indigo-600' 
-                : 'justify-center hover:bg-indigo-50'
+                ? 'hover:bg-blue-50 text-gray-700 hover:text-blue-600' 
+                : 'justify-center hover:bg-blue-50'
             }`}
           >
             <div className="flex items-center gap-3">
@@ -136,7 +121,7 @@ const AdminSidebar: React.FC<AdminSidebarProps> = ({
                   className={({ isActive }) =>
                     `flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-all duration-200 ${
                       isActive
-                        ? 'bg-gradient-to-r from-indigo-500 to-purple-500 text-white font-medium shadow-sm'
+                        ? 'bg-gradient-to-r from-blue-500 to-cyan-500 text-white font-medium shadow-sm'
                         : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
                     }`
                   }
@@ -158,7 +143,7 @@ const AdminSidebar: React.FC<AdminSidebarProps> = ({
         className={({ isActive }) =>
           `flex items-center justify-between px-3 py-2.5 rounded-lg transition-all duration-200 mb-1 ${
             isActive
-              ? 'bg-gradient-to-r from-indigo-500 to-purple-500 text-white font-medium shadow-sm'
+              ? 'bg-gradient-to-r from-blue-500 to-cyan-500 text-white font-medium shadow-sm'
               : 'text-gray-700 hover:text-gray-900 hover:bg-gray-100'
           }`
         }
@@ -176,7 +161,7 @@ const AdminSidebar: React.FC<AdminSidebarProps> = ({
     );
   };
 
-  // MODIFICATION PRINCIPALE ICI
+  // Classes conditionnelles pour le sidebar
   const sidebarClasses = isMobile 
     ? 'fixed inset-0 z-50 w-full h-screen bg-white overflow-y-auto' 
     : `fixed left-0 top-0 h-screen z-30 bg-white border-r border-gray-100 flex flex-col shadow-sm ${sidebarOpen ? 'w-64' : 'w-20'}`;
@@ -188,11 +173,11 @@ const AdminSidebar: React.FC<AdminSidebarProps> = ({
         {sidebarOpen ? (
           <>
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-r from-indigo-500 to-purple-500 flex items-center justify-center shadow-sm">
-                <Sparkles className="w-5 h-5 text-white" />
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-r from-blue-500 to-cyan-500 flex items-center justify-center shadow-sm">
+                <Building className="w-5 h-5 text-white" />
               </div>
               <div>
-                <div className="font-bold text-gray-900">Admin Panel</div>
+                <div className="font-bold text-gray-900">Directeur Panel</div>
                 <div className="text-xs text-gray-500">HotelSphere</div>
               </div>
             </div>
@@ -223,7 +208,7 @@ const AdminSidebar: React.FC<AdminSidebarProps> = ({
       <nav className="flex-1 overflow-y-auto p-4">
         <div className="mb-6">
           <div className={`text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3 ${sidebarOpen ? '' : 'text-center'}`}>
-            {sidebarOpen ? 'Navigation' : '•••'}
+            {sidebarOpen ? 'Gestion' : '•••'}
           </div>
           <div className="space-y-1">
             {navItems.map((item) => (
@@ -235,7 +220,7 @@ const AdminSidebar: React.FC<AdminSidebarProps> = ({
         {/* Section paramètres */}
         <div>
           <div className={`text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3 ${sidebarOpen ? '' : 'text-center'}`}>
-            {sidebarOpen ? 'Administration' : '••'}
+            {sidebarOpen ? 'Préférences' : '••'}
           </div>
           <div className="space-y-1">
             {settingsItems.map((item) => (
@@ -262,7 +247,7 @@ const AdminSidebar: React.FC<AdminSidebarProps> = ({
       {/* Footer sidebar */}
       <div className={`p-4 border-t border-gray-100 ${sidebarOpen ? '' : 'text-center'}`}>
         <div className={`text-xs text-gray-500 mb-2 ${sidebarOpen ? '' : 'hidden'}`}>
-          Connecté en tant qu'Admin
+          Connecté en tant que Directeur
         </div>
         <div className="text-xs text-gray-400">
           v2.1.0 • {sidebarOpen ? '© 2024 HotelSphere' : '© HS'}
@@ -272,4 +257,4 @@ const AdminSidebar: React.FC<AdminSidebarProps> = ({
   );
 };
 
-export default AdminSidebar;
+export default DirectorSidebar;
