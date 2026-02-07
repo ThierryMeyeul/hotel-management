@@ -33,3 +33,18 @@ class InvoiceViewSet(viewsets.ModelViewSet):
             return Response(serializer.data)
         except Payment.DoesNotExist:
             return Response({'error': 'Payment not found'}, status=status.HTTP_404_NOT_FOUND)
+        
+    @action(detail=False, methods=['get'], url_path='by-payment/(?P<payment_id>[^/.]+)')
+    def by_payment(self, request, payment_id=None):
+        """
+        Récupère une invoice à partir de l'ID du payment.
+        """
+        try:
+            invoice = Invoice.objects.get(payment__id=payment_id)
+            serializer = self.get_serializer(invoice)
+            return Response(serializer.data)
+        except Invoice.DoesNotExist:
+            return Response(
+                {'error': f'Invoice not found for payment {payment_id}'},
+                status=status.HTTP_404_NOT_FOUND
+            )

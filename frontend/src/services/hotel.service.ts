@@ -153,5 +153,15 @@ export const hotelService = {
         } catch (error: any) {
             throw new Error(error.response?.data?.detail || "Erreur lors de la création de l'hôtel");
         }
+    },
+    
+    async getHotelsByCountry(country: string): Promise<Hotel[]> {
+        const response = await api.get(`/hotels/by-country/?country=${country}`);
+        return response.data;
+    }, 
+
+    async getHotelByName(name: string): Promise<Hotel[]> {
+        const response = await api.get(`/hotels/by-name/?name=${name}`);
+        return response.data;
     }
 };

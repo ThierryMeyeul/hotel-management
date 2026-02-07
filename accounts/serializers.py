@@ -13,7 +13,7 @@ from .tokens import account_activation_token
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ['id', 'username', 'email', 'first_name', 'last_name', 'role', 'phone_number', 'is_blocked']
+        fields = ['id', 'username', 'email', 'first_name', 'last_name', 'role', 'phone_number', 'is_blocked', 'date_joined']
         extra_kwargs = {
             'password': {'write_only': True},
         }
@@ -97,6 +97,9 @@ class LoginSerializer(serializers.Serializer):
             
             if not user:
                 raise serializers.ValidationError("Unable to log in with provided credentials.")
+            
+            if user.is_blocked:
+                raise serializers.ValidationError("Your account is blocked. Please speak with an administrator to learn more.")
             
             refresh = RefreshToken.for_user(user)
             

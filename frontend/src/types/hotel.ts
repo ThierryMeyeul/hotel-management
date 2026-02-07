@@ -45,6 +45,17 @@ export interface NearbyHotelResponse {
 export interface UserLocation {
   latitude: number;
   longitude: number;
+  country?: string;
+  city?: string;
+  address?: {
+    country: string;
+    city: string;
+    town?: string;
+    village?: string;
+    state?: string;
+    postcode?: string;
+    road?: string;
+  };
 }
 
 export interface GeolocationError {

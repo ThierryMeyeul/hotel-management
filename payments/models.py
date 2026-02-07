@@ -1,6 +1,4 @@
 from django.db import models
-from reservations.models import Reservation
-
 
 class Payment(models.Model):
     
@@ -15,7 +13,7 @@ class Payment(models.Model):
         BANK_TRANSFER = 'BANK_TRANSFER', 'Bank Transfer'
         MOBLILE_MONEY = 'MOBILE_MONEY', 'Mobile Money'
     
-    reservation = models.OneToOneField(Reservation, on_delete=models.CASCADE)
+    reservation = models.OneToOneField("reservations.Reservation", on_delete=models.CASCADE)
     amount = models.DecimalField(max_digits=10, decimal_places=2)
     payment_date = models.DateTimeField(auto_now_add=True)
     payment_method = models.CharField(max_length=20, choices=PaymentMethod.choices)

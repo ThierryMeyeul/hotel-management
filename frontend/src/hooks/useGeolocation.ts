@@ -1,12 +1,18 @@
 import { useState, useCallback } from 'react';
 import type { UserLocation, GeolocationError } from '../types/hotel';
 
+export interface GeolocationData {
+  latitude: number;
+  longitude: number;
+  country?: string;
+}
 
 export const useGeolocation = () => {
     const [location, setLocation] = useState<UserLocation | null>(null);
     const [error, setError] = useState<string | null>(null);
-    const [isLoading, setisLoading] = useState<boolean>(false);
+    const [isLoading, setIsLoading] = useState<boolean>(false);
     const [permission, setPermission] = useState<PermissionState | null>(null);
+    const [country, setCountry] = useState<string | null>(null);
 
     const checkPermission = useCallback(async (): Promise<PermissionState | null> => {
         if (!navigator.permissions) {
@@ -25,8 +31,27 @@ export const useGeolocation = () => {
         }
     }, []);
 
+    const getCountryFromCoordinates = useCallback(async (latitude: number, longitude: number): Promise<string | null> => {
+        try {
+            const response = await fetch(
+                `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&zoom=5`
+            );
+            
+            if (!response.ok) {
+                console.warn('Impossible de récupérer le pays');
+                return null;
+            }
+            
+            const data = await response.json();
+            return data.address?.country || null;
+        } catch (err) {
+            console.warn('Erreur lors de la récupération du pays:', err);
+            return null;
+        }
+    }, []);
+
     const getCurrentPosition = useCallback(
-        (options?: PositionOptions): Promise<UserLocation> => {
+        async (options?: PositionOptions): Promise<GeolocationData> => {
             return new Promise(async (resolve, reject) => {
                 if (!navigator.geolocation) {
                     const geoError: GeolocationError = {
@@ -36,8 +61,9 @@ export const useGeolocation = () => {
                     setError(geoError.message);
                     return reject(geoError);
                 }
-                setisLoading(true)
-                setError(null)
+                
+                setIsLoading(true);
+                setError(null);
 
                 const defaultOptions: PositionOptions = {
                     enableHighAccuracy: true, 
@@ -46,14 +72,26 @@ export const useGeolocation = () => {
                 }; 
 
                 navigator.geolocation.getCurrentPosition(
-                    (position) => {
+                    async (position) => {
                         const userLocation: UserLocation = {
                             latitude: position.coords.latitude,
                             longitude: position.coords.longitude,
                         };
-                        setLocation(userLocation)
-                        setisLoading(false)
-                        resolve(userLocation)
+                        
+                        // Récupérer le pays à partir des coordonnées
+                        const userCountry = await getCountryFromCoordinates(
+                            position.coords.latitude, 
+                            position.coords.longitude
+                        );
+                        
+                        setLocation(userLocation);
+                        setCountry(userCountry);
+                        setIsLoading(false);
+                        
+                        resolve({
+                            ...userLocation,
+                            country: userCountry || undefined
+                        });
                     },
                     (error) => {
                         let errorMessage = 'Erreur de géolocalisation';
@@ -63,7 +101,7 @@ export const useGeolocation = () => {
                                 errorMessage = "Permission de géolocalisation refusée";
                                 break;
                             case error.POSITION_UNAVAILABLE:
-                                errorMessage = "Position indisponible"
+                                errorMessage = "Position indisponible";
                                 break;
                             case error.TIMEOUT:
                                 errorMessage = "Délai de géolocalisation dépassé";
@@ -76,18 +114,18 @@ export const useGeolocation = () => {
                         };
 
                         setError(errorMessage);
-                        setisLoading(false)
+                        setIsLoading(false);
                         reject(geoError);
                     },
                     {  ...defaultOptions, ...options }
                 );
             });
         },
-        []
+        [getCountryFromCoordinates]
     );
 
     const watchPosition = useCallback(
-        (callback: (location: UserLocation) => void, options?: PositionOptions) => {
+        (callback: (location: GeolocationData) => void, options?: PositionOptions) => {
             if (!navigator.geolocation) {
                 setError('Géolocalisation non supportée');
                 return () => {};
@@ -100,12 +138,19 @@ export const useGeolocation = () => {
             };
 
             const watchId = navigator.geolocation.watchPosition(
-                (position) => {
-                    const userLocation: UserLocation = {
+                async (position) => {
+                    const userCountry = await getCountryFromCoordinates(
+                        position.coords.latitude, 
+                        position.coords.longitude
+                    );
+                    
+                    const locationData: GeolocationData = {
                         latitude: position.coords.latitude,
                         longitude: position.coords.longitude,
+                        country: userCountry || undefined
                     };
-                    callback(userLocation);
+                    
+                    callback(locationData);
                 },
                 (error) => {
                     setError(`Erreur de suivi: ${error.message}`);
@@ -115,19 +160,22 @@ export const useGeolocation = () => {
 
             return () => navigator.geolocation.clearWatch(watchId);
         },
-        []
+        [getCountryFromCoordinates]
     );
+    
     const resetLocation = useCallback(() => {
         setLocation(null);
         setError(null);
-        setisLoading(false);
+        setCountry(null);
+        setIsLoading(false);
     }, []);
 
     return {
         location,
         error, 
         isLoading,
-        permission, 
+        permission,
+        country,  // Ajout du pays
         getCurrentPosition,
         watchPosition,
         checkPermission,

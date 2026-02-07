@@ -60,7 +60,7 @@ INSTALLED_APPS = [
     'accounts',
     'hotels',
     'payments',
-    'reservations',
+    'reservations.apps.ReservationsConfig',
     'reviews',
 ]
 

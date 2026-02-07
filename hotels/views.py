@@ -184,3 +184,28 @@ class HotelViewSet(viewsets.ModelViewSet):
         # DELETE
         image.delete()
         return Response(status=204)
+    
+    @action(detail=False, methods=['get'], url_path='by-country')
+    def hotels_by_country(self, request):
+        country = request.query_params.get('country')
+        
+        queryset = self.get_queryset()
+        
+        if country:
+            queryset = queryset.filter(country__iexact=country)
+        
+        serializer = self.get_serializer(queryset, many=True)
+        return Response(serializer.data)
+    
+    @action(detail=False, methods=['get'], url_path='by-name')
+    def by_name(self, request):
+        """
+        Récupère tous les hôtels dont le nom correspond au paramètre 'name'.
+        """
+        name = request.query_params.get('name')
+        if not name:
+            return Response({"error": "Le paramètre 'name' est requis"}, status=status.HTTP_400_BAD_REQUEST)
+
+        hotels = Hotel.objects.filter(name__icontains=name)  # recherche insensible à la casse
+        serializer = self.get_serializer(hotels, many=True)
+        return Response(serializer.data)

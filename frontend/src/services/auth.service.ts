@@ -37,6 +37,11 @@ export const registerDirector = async (username: string, password: string, email
   return response.data
 }
 
+export const getAllUsers = async () => {
+  const response = await api.get('/accounts/users/')
+  return response.data
+}
+
 export const getAllDirectors = async(): Promise<Director[]> => {
   const response = await api.get('/accounts/users/directors/')
   return response.data
@@ -118,4 +123,25 @@ apiActivate.interceptors.request.use((config => {
   return config;
 }));
 
-
+export const AdminStatService = {
+  async getDashboardStats() {
+    const response = await api.get('/accounts/admin/dashboard/stats/')
+    return response.data
+  },
+  async getActivityData() {
+    const response = await api.get('/accounts/admin/activity/')
+    return response.data
+  },
+  async getRoleDistribution() {
+    const response = await api.get('/accounts/admin/roles/distribution/')
+    return response.data
+  },
+  async getRecentHotels() {
+    const response = await api.get('/accounts/admin/recent-hotels/')
+    return response.data
+  },
+  async getRecentReservations() {
+    const response = await api.get('/accounts/admin/recent-reservations/')
+    return response.data
+  }
+}

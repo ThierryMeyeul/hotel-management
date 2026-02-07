@@ -59,5 +59,10 @@ export const bookingService = {
   async getReservationsByHotel(hotel_name: string) {
     const response = await api.get(`/reservations/by-hotel/?hotel_name=${encodeURIComponent(hotel_name)}`)
     return response.data
+  },
+
+  async getInvoice(paymentId: number) {
+    const response = await api.get(`/invoices/by-payment/${paymentId}/`);
+    return response.data;
   }
 };

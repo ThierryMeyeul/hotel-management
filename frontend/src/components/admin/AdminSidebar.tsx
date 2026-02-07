@@ -62,7 +62,8 @@ const AdminSidebar: React.FC<AdminSidebarProps> = ({
       path: '/admin/managers',
       subItems: [
         { title: 'Assigner manager', path: '/admin/managers/assign', icon: UserCog },
-        { title: 'Liste managers', path: '/admin/managers', icon: List }
+        { title: 'Liste managers', path: '/admin/managers', icon: List },
+        { title: 'Ajouter un manager', path: '/admin/managers/create', icon: PlusCircle }
       ]
     },
     // {

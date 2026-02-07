@@ -8,6 +8,30 @@ export const useHotels = () => {
   const [error, setError] = useState<string | null>(null);
   const [metadata, setMetadata] = useState<any>(null);
 
+  const loadHotelsByCountry = useCallback(async (country: string) => {
+    setLoading(true);
+    setError(null);
+
+    try {
+      const response = await hotelService.getHotelsByCountry(country);
+      
+      setHotels(response);
+      setMetadata({
+        type: "by_country",
+        country: country,
+        count: response.length
+      });
+    } catch (err) {
+      if (err instanceof Error) {
+        setError(err.message);
+      } else {
+        setError(`Erreur lors du chargement des hôtels pour ${country}`);
+      }
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
   const loadNearbyHotels = useCallback(
     async (params: NearbySearchParams) => {
       setLoading(true);
@@ -42,5 +66,6 @@ export const useHotels = () => {
     error,
     metadata,
     loadNearbyHotels,
+    loadHotelsByCountry
   };
 };
