@@ -90,7 +90,7 @@ const ManagersPage: React.FC = () => {
       setActionLoading(director.id);
       
       // Appel à votre service
-      await toggleBlockUser(director.id, true);
+      await toggleBlockUser(director.id, !director.is_blocked);
 
       // Mettre à jour la liste localement
       setDirectors(prev => prev.map(d => 

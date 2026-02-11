@@ -12,6 +12,8 @@ import AssignManagerPage from "../pages/admin/hotels/AssignManager";
 import AdminSettings from "../pages/admin/AdminSettings";
 import HelpAndSupport from "../pages/admin/HelpAndSupport";
 import AdminReservationDetail from "../pages/reservations/ReservationDetail";
+import DirectorDetailPage from "../pages/admin/managers/DirectorDetailPage";
+import UserFavorite from "../pages/favorite/UserFavorite";
 
 export default function AdminRoutes() {
   return (
@@ -26,10 +28,12 @@ export default function AdminRoutes() {
         <Route path="bookings" element={<AdminReservationsPage />} />
         <Route path="reservations/:id" element={<AdminReservationDetail />} />
         <Route path="managers" element={<ManagersPage />} />
+        <Route path="managers/:id" element={<DirectorDetailPage />} />
         <Route path="managers/create" element={<CreateManagerPage />} />
         <Route path="managers/assign" element={<AssignManagerPage />} />
         <Route path="settings" element={<AdminSettings />} />
         <Route path="help" element={<HelpAndSupport />} />
+        <Route path="favorites" element={<UserFavorite />} />
         {/* blocage admin/* inconnu */}
         <Route path="*" element={<Navigate to="/not-authorized" replace />} />
       </Route>

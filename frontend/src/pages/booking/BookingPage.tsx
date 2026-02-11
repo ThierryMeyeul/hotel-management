@@ -64,10 +64,10 @@ const BookingPage: React.FC = () => {
           navigate('/admin/hotels');
           break;
         case 'director':
-          navigate('/director/hotels');
+          navigate('/director/hotels/list');
           break;
         case 'manager':
-          navigate('/manager/hotels');
+          navigate('/manager/hotels/list');
           break;
         default:
           navigate('/client/hotels');
@@ -260,7 +260,7 @@ const BookingPage: React.FC = () => {
       case 'admin':
         return '/admin/bookings';
       case 'director':
-        return '/director/bookings';
+        return '/director/bookings/mine';
       case 'client':
         return '/client/bookings';
       default:

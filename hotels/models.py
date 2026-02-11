@@ -30,6 +30,9 @@ class Hotel(models.Model):
     def __str__(self):
         return self.name
     
+    def total_favorites(self):
+        return self.favorited_by.count()
+    
     def save(self, *args, **kwargs):
         if self.latitude and self.longitude:
             self.location = Point(float(self.longitude), float(self.latitude), srid=4326)
@@ -75,3 +78,14 @@ class Room(models.Model):
 
     def __str__(self):
         return f"Room {self.room_number} at {self.hotel.name}"
+    
+class Favorite(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='favorites')
+    hotel = models.ForeignKey(Hotel, on_delete=models.CASCADE, related_name='favorited_by')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ('user', 'hotel')
+
+    def __str__(self):
+        return f"{self.user.username} favorites {self.hotel.name}"

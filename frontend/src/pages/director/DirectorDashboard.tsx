@@ -503,7 +503,7 @@ const DirectorDashboard: React.FC = () => {
             </div>
           </div>
 
-          {/* Rappels */}
+          {/* Rappels
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
             <h2 className="text-xl font-bold text-gray-900 mb-4">Rappels</h2>
             <div className="space-y-3">
@@ -531,7 +531,7 @@ const DirectorDashboard: React.FC = () => {
                 </div>
               </div>
             </div>
-          </div>
+          </div> */}
         </div>
       </div>
     </div>

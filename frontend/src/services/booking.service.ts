@@ -64,5 +64,9 @@ export const bookingService = {
   async getInvoice(paymentId: number) {
     const response = await api.get(`/invoices/by-payment/${paymentId}/`);
     return response.data;
+  },
+
+  async getReservationsByHotelId  (hotelId: number) {
+    return api.get(`/reservations/by-hotel/${hotelId}/`).then(res => res.data);
   }
 };

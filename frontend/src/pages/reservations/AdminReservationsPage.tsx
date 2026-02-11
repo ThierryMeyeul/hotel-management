@@ -186,9 +186,9 @@ const AdminReservationsPage: React.FC = () => {
       case 'admin':
         return '/admin/hotels';
       case 'director':
-        return '/director/hotels';
+        return '/director/hotels/list';
       case 'manager':
-        return '/manager/hotels';
+        return '/manager/hotels/list';
       case 'client':
         return '/client/hotels';
       default:

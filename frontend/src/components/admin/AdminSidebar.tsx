@@ -18,7 +18,8 @@ import {
   Home,
   PlusCircle,
   List,
-  Sparkles
+  Sparkles,
+  Heart
 } from 'lucide-react';
 
 interface AdminSidebarProps {
@@ -49,6 +50,11 @@ const AdminSidebar: React.FC<AdminSidebarProps> = ({
         { title: 'Liste des hôtels', path: '/admin/hotels', icon: List },
         { title: 'Ajouter un hôtel', path: '/admin/hotels/create', icon: PlusCircle },
       ]
+    },
+    {
+      title: 'Favoris',
+      icon: Heart,
+      path: '/admin/favorites'
     },
     {
       title: 'Réservations',

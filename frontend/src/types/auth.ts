@@ -19,6 +19,7 @@ export interface Director {
   is_active?: boolean;       // optionnel
   date_joined?: string; 
   phone?: string | null; 
+  created_at?: string;
 }
 
 // src/types/index.ts

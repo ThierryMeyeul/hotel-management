@@ -22,7 +22,9 @@ export interface Hotel {
   updated_at: string;
   is_active: boolean;
   rooms?: Room[];
-  images: HotelImage[]
+  images: HotelImage[];
+  is_favorite?: boolean;
+  total_favorites?: number;
 }
 
 export interface NearbySearchParams {

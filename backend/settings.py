@@ -74,6 +74,13 @@ CORS_ALLOWED_ORIGINS = [
     "http://localhost:5173",
 ]
 
+# Autoriser ton frontend React en développement
+CSRF_TRUSTED_ORIGINS = [
+    'http://localhost:5173',
+    'http://127.0.0.1:5173',
+]
+
+
 SIMPLE_JWT = {
     'ACCESS_TOKEN_LIFETIME': timedelta(minutes=60),
     'REFRESH_TOKEN_LIFETIME': timedelta(days=1),

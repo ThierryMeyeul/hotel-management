@@ -1,16 +1,26 @@
 from rest_framework import viewsets, status
-from rest_framework.decorators import action
+from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.response import Response
 from rest_framework.exceptions import ValidationError
 from django.contrib.auth import get_user_model
+from rest_framework.permissions import IsAuthenticated
+from django.views.decorators.csrf import csrf_exempt
+from rest_framework.authentication import SessionAuthentication, BasicAuthentication
+from rest_framework.decorators import action, authentication_classes, permission_classes
+from rest_framework.permissions import IsAuthenticated
 
-from .models import Hotel, Room, HotelImage
-from .serializers import HotelSerializer, RoomSerializer, HotelImageSerializer, NearbyHotelsSerializer
+from .models import Hotel, Room, HotelImage, Favorite
+from .serializers import HotelSerializer, RoomSerializer, HotelImageSerializer, NearbyHotelsSerializer, FavoriteSerializer
 from .permissions import HotelPermission
 from .utils.geolocation import get_nearby_hotels
 
 
+
 user = get_user_model()
+
+class CsrfExemptSessionAuthentication(SessionAuthentication):
+    def enforce_csrf(self, request):
+        return 
 
 class HotelViewSet(viewsets.ModelViewSet): 
     queryset = Hotel.objects.filter()
@@ -209,3 +219,98 @@ class HotelViewSet(viewsets.ModelViewSet):
         hotels = Hotel.objects.filter(name__icontains=name)  # recherche insensible à la casse
         serializer = self.get_serializer(hotels, many=True)
         return Response(serializer.data)
+    
+    @action(detail=False, methods=['get'], url_path='by-manager/(?P<manager_id>[^/.]+)')
+    def by_manager(self, request, manager_id=None):
+        """
+        Récupère tous les hôtels gérés par un manager spécifique
+        """
+        hotels = self.queryset.filter(manager_id=manager_id, is_active=True)
+        serializer = self.get_serializer(hotels, many=True)
+        return Response(serializer.data)
+    
+    
+class RoomViewSet(viewsets.ModelViewSet):
+    queryset = Room.objects.filter()
+    serializer_class = RoomSerializer
+    permission_classes = [HotelPermission]
+    
+    # def get_queryset(self):
+    #     queryset = super().get_queryset()
+        
+    #     hotel_id = self.kwargs.get('hotel_pk')
+    #     if hotel_id:
+    #         queryset = queryset.filter(hotel_id=hotel_id)
+    #     return queryset
+
+class FavoriteViewSet(viewsets.ViewSet):
+    """
+    ViewSet pour gérer les favoris d'un utilisateur.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def list(self, request):
+        """Liste tous les favoris de l'utilisateur connecté"""
+        favorites = Favorite.objects.filter(user=request.user)
+        serializer = FavoriteSerializer(favorites, many=True)
+        return Response(serializer.data)
+
+    @action(detail=False, methods=['get'], url_path='my-hotels')
+    def my_hotels(self, request):
+        """Retourne les hôtels favoris de l'utilisateur connecté"""
+        favorites = Favorite.objects.filter(user=request.user).select_related('hotel')
+        hotels = [fav.hotel for fav in favorites]
+        serializer = HotelSerializer(hotels, many=True, context={'request': request})
+        return Response(serializer.data)
+
+    @action(detail=True, methods=['post'], url_path='add')
+    def add(self, request, pk=None):
+        """Ajouter un hôtel aux favoris"""
+        user = request.user
+        try:
+            hotel = Hotel.objects.get(id=pk, is_active=True)
+        except Hotel.DoesNotExist:
+            return Response({'detail': 'Hotel not found.'}, status=404)
+
+        favorite, created = Favorite.objects.get_or_create(user=user, hotel=hotel)
+        if not created:
+            return Response({'detail': 'Hotel is already in favorites.'}, status=400)
+
+        serializer = FavoriteSerializer(favorite)
+        return Response(serializer.data, status=201)
+
+    @action(detail=True, methods=['delete'], url_path='remove')
+    def remove(self, request, pk=None):
+        """Supprimer un hôtel des favoris"""
+        user = request.user
+        try:
+            favorite = Favorite.objects.get(user=user, hotel_id=pk)
+            favorite.delete()
+            return Response(status=204)
+        except Favorite.DoesNotExist:
+            return Response({'detail': 'Favorite not found.'}, status=404)
+
+    @action(detail=True, methods=['post'], url_path='toggle')
+    def toggle(self, request, pk=None):
+        # authentication_classes = [SessionAuthentication, BasicAuthentication]
+        # permission_classes = [IsAuthenticated]
+        """Ajouter ou retirer un hôtel des favoris"""
+        user = request.user
+        try:
+            hotel = Hotel.objects.get(id=pk, is_active=True)
+        except Hotel.DoesNotExist:
+            return Response({'detail': 'Hotel not found.'}, status=404)
+
+        favorite, created = Favorite.objects.get_or_create(user=user, hotel=hotel)
+        if not created:
+            favorite.delete()
+            return Response({'detail': 'Hotel removed from favorites.'}, status=200)
+
+        serializer = FavoriteSerializer(favorite)
+        return Response(serializer.data, status=201)
+
+    @action(detail=True, methods=['get'], url_path='check')
+    def check(self, request, pk=None):
+        """Vérifie si un hôtel est dans les favoris"""
+        is_fav = Favorite.objects.filter(user=request.user, hotel_id=pk).exists()
+        return Response({'is_favorite': is_fav})

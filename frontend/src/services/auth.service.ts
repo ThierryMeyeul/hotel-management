@@ -52,6 +52,11 @@ export const deleteUser = async(id: number) => {
   return response.data
 }
 
+export const getDirectorById = async(id: number) => {
+  const response = await api.get(`/accounts/users/${id}/`)
+  return response.data
+}
+
 export const toggleBlockUser = async(id:number, is_blocked: boolean) => {
   const response = await api.patch(`/accounts/users/${id}/`, { is_blocked })
   return response.data
@@ -103,6 +108,11 @@ export const getUserInfo = (): any | null => {
   return data ? JSON.parse(data) : null;
 }
 
+export const getUserById = async (id: number) => {
+  const response = await api.get(`/accounts/users/${id}/`);
+  return response.data;
+}
+
 
 
 
@@ -143,5 +153,5 @@ export const AdminStatService = {
   async getRecentReservations() {
     const response = await api.get('/accounts/admin/recent-reservations/')
     return response.data
-  }
+  },
 }

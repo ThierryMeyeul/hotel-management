@@ -17,8 +17,10 @@ import {
   Sparkles,
   Home,
   FileText,
-  BarChart3
+  BarChart3,
+  Heart
 } from 'lucide-react';
+// import path from 'path';
 
 interface DirectorSidebarProps {
   sidebarOpen: boolean;
@@ -41,9 +43,19 @@ const DirectorSidebar: React.FC<DirectorSidebarProps> = ({
       badge: null
     },
     {
-      title: 'Mes Hôtels',
+      title: 'Hôtels',
       icon: Building,
       path: '/director/hotels',
+      subItems: [
+        { title: 'Mes hôtels',path: '/director/hotels', icon: Home },
+        { title: 'Hotels list',path: '/director/hotels/list',icon: List},
+      ],
+      badge: '3'
+    },
+    {
+      title: 'Favoris',
+      icon: Heart,
+      path: '/director/favorites'
     },
     {
       title: 'Réservations',
@@ -52,20 +64,21 @@ const DirectorSidebar: React.FC<DirectorSidebarProps> = ({
       subItems: [
         { title: 'Toutes les réservations', path: '/director/bookings', icon: List },
         { title: 'Réservations en cours', path: '/director/bookings/active', icon: Calendar },
-        { title: 'Historique', path: '/director/bookings/history', icon: FileText }
+        { title: 'Historique', path: '/director/bookings/history', icon: FileText },
+        { title: 'Mes réservations', path: '/director/bookings/mine', icon: Calendar }
       ],
       badge: '12'
     },
-    {
-      title: 'Chambres',
-      icon: Bed,
-      path: '/director/rooms',
-      subItems: [
-        { title: 'Gestion des chambres', path: '/director/rooms', icon: List },
-        { title: 'Types de chambres', path: '/director/rooms/types', icon: Bed },
-        { title: 'Disponibilités', path: '/director/rooms/availability', icon: Calendar }
-      ]
-    },
+    // {
+    //   title: 'Chambres',
+    //   icon: Bed,
+    //   path: '/director/rooms',
+    //   subItems: [
+    //     { title: 'Gestion des chambres', path: '/director/rooms', icon: List },
+    //     { title: 'Types de chambres', path: '/director/rooms/types', icon: Bed },
+    //     { title: 'Disponibilités', path: '/director/rooms/availability', icon: Calendar }
+    //   ]
+    // },
     {
       title: 'Clients',
       icon: Users,

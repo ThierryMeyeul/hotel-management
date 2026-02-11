@@ -23,12 +23,19 @@ import {
   Heart,
   Navigation,
   ExternalLink,
-  Route
+  Route,
+  Loader2,
+  HeartOff,
+  AlertCircle
 } from 'lucide-react';
 import Loader from '../../components/Loader';
 import { hotelService } from '../../services/hotel.service';
+import { getUserInfo } from '../../services/auth.service';
 import type { Room, Hotel } from '../../types/hotel';
 import { useAuth } from '../../context/AuthContext';
+import { toast } from 'react-toastify';
+
+
 
 const HotelDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -41,9 +48,23 @@ const HotelDetailPage: React.FC = () => {
   const [checkOutDate, setCheckOutDate] = useState('');
   const [guests, setGuests] = useState(1);
   const [isFavorite, setIsFavorite] = useState(false);
+  const [togglingFavorite, setTogglingFavorite] = useState(false);
   const [userLocation, setUserLocation] = useState<{latitude: number, longitude: number} | null>(null);
   const [distance, setDistance] = useState<number | null>(null);
   const [activeImage, setActiveImage] = useState(0);
+
+  const { user, isAuthenticated } = useAuth();
+
+  // Récupérer le rôle utilisateur
+  const getUserRole = (): string => {
+    return getUserInfo()?.role?.toLowerCase() || 'client';
+  };
+
+  // Vérifier si l'utilisateur peut ajouter aux favoris
+  const canAddToFavorites = (): boolean => {
+    const role = getUserRole();
+    return isAuthenticated && ['admin', 'director', 'client'].includes(role);
+  };
 
   useEffect(() => {
     const fetchHotel = async () => {
@@ -53,6 +74,12 @@ const HotelDetailPage: React.FC = () => {
         setLoading(true);
         const data = await hotelService.getHotelDetails(parseInt(id));
         setHotel(data);
+        
+        // Initialiser l'état favori avec la valeur de l'API
+        if (data.is_favorite !== undefined) {
+          setIsFavorite(data.is_favorite);
+        }
+        
         if (data.rooms && data.rooms.length > 0) {
           setSelectedRoom(data.rooms[0]);
         }
@@ -69,10 +96,28 @@ const HotelDetailPage: React.FC = () => {
     fetchHotel();
   }, [id]);
 
-  const { user, isAuthenticated } = useAuth();
+  // Vérifier le statut favori au chargement
+  useEffect(() => {
+    const checkFavoriteStatus = async () => {
+      if (!id || !isAuthenticated || !hotel) return;
+      
+      try {
+        // Si l'API n'a pas retourné is_favorite, on le vérifie séparément
+        if (hotel.is_favorite === undefined) {
+          const response = await hotelService.checkFavoriteHotel(parseInt(id));
+          setIsFavorite(response.is_favorite);
+        }
+      } catch (err) {
+        console.error('Erreur lors de la vérification du statut favori:', err);
+      }
+    };
+
+    checkFavoriteStatus();
+  }, [id, isAuthenticated, hotel]);
+
   const getBookingRoute = () => {
     if (isAuthenticated && user) {
-      const userRole = user.role.toLocaleLowerCase()
+      const userRole = user.role.toLowerCase();
 
       switch(userRole) {
         case 'admin':
@@ -85,8 +130,8 @@ const HotelDetailPage: React.FC = () => {
           return '/client/booking/create';
       }
     }
-    return '/login'
-  }
+    return '/login';
+  };
 
   const getUserLocation = () => {
     if (navigator.geolocation) {
@@ -140,19 +185,84 @@ const HotelDetailPage: React.FC = () => {
     }
   };
 
+  // Gérer l'ajout/retrait des favoris
+  const handleToggleFavorite = async () => {
+    if (!isAuthenticated) {
+      toast.info('Veuillez vous connecter pour ajouter aux favoris');
+      navigate('/login');
+      return;
+    }
+
+    if (!canAddToFavorites()) {
+      toast.error('Votre rôle ne permet pas d\'ajouter aux favoris');
+      return;
+    }
+
+    if (!id) return;
+
+    try {
+      setTogglingFavorite(true);
+      
+      const response = await hotelService.toogleFavoriteHotel(parseInt(id));
+      
+      // Mettre à jour l'état local
+      setIsFavorite(response.is_favorite);
+      
+      // Mettre à jour l'objet hotel
+      if (hotel) {
+        setHotel({
+          ...hotel,
+          is_favorite: response.is_favorite
+        });
+      }
+
+      // Afficher un message de succès
+      if (response.is_favorite) {
+        toast.success('Hôtel ajouté aux favoris');
+      } else {
+        toast.success('Hôtel retiré des favoris');
+      }
+
+    } catch (err: any) {
+      console.error('Erreur lors de la modification des favoris:', err);
+      
+      if (err.response?.status === 401) {
+        toast.error('Session expirée, veuillez vous reconnecter');
+        navigate('/login');
+      } else {
+        toast.error(err.response?.data?.message || 'Erreur lors de la modification des favoris');
+      }
+    } finally {
+      setTogglingFavorite(false);
+    }
+  };
+
+  // Partager l'hôtel
+  const handleShareHotel = () => {
+    const role = getUserRole();
+    const baseUrl = window.location.origin;
+    const url = `${baseUrl}/${role}/hotels/${id}`;
+    
+    navigator.clipboard.writeText(url);
+    toast.success('Lien copié dans le presse-papier');
+  };
+
   const handleBookNow = () => {
     if (!selectedRoom || !hotel) return;
   
     // Convertir le prix en nombre AVANT de l'envoyer
     const priceNumber = parseFloat(selectedRoom.price_per_night) || 0;
     
+    const hotelImages = hotel.images || [];
+    const defaultImage = "/src/assets/hotel-illustration.webp";
+
     const bookingData = {
       hotelId: hotel.id,
       hotelName: hotel.name,
       roomId: selectedRoom.id,
       roomType: selectedRoom.room_type,
       roomNumber: selectedRoom.room_number,
-      price: priceNumber, // DÉJÀ CONVERTI EN NOMBRE
+      price: priceNumber,
       checkInDate,
       checkOutDate,
       guests,
@@ -161,7 +271,7 @@ const HotelDetailPage: React.FC = () => {
       hotelCountry: hotel.country,
       hotelImage: hotelImages[0]?.image || defaultImage,
       // Informations pour la réservation selon le modèle
-      userId: localStorage.getItem('user_id'), // Récupérer l'ID de l'utilisateur connecté
+      userId: localStorage.getItem('user_id'),
       userName: localStorage.getItem('user_name') || 'Client'
     };
   
@@ -245,7 +355,7 @@ const HotelDetailPage: React.FC = () => {
           <h2 className="text-2xl font-bold text-gray-900 mb-2">Hôtel non trouvé</h2>
           <p className="text-gray-600 mb-6">{error || "L'hôtel demandé n'existe pas."}</p>
           <Link
-            to="/hotels"
+            to={`/${getUserRole()}/hotels`}
             className="inline-flex items-center gap-2 px-6 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors font-medium"
           >
             <ArrowLeft className="w-4 h-4" />
@@ -280,7 +390,7 @@ const HotelDetailPage: React.FC = () => {
       </div>
 
       <main className="container mx-auto px-4 sm:px-6 pb-12">
-        {/* En-tête de l'hôtel avec distance */}
+        {/* En-tête de l'hôtel avec distance et favoris */}
         <div className="mb-8">
           <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 mb-4">
             <div className="flex-1">
@@ -314,19 +424,29 @@ const HotelDetailPage: React.FC = () => {
                 </div>
               )}
               
-              <button
-                onClick={() => setIsFavorite(!isFavorite)}
-                className={`p-3 rounded-full transition-all duration-200 ${
-                  isFavorite 
-                    ? 'bg-red-100 text-red-600 hover:bg-red-200' 
-                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200 hover:text-gray-900'
-                }`}
-                aria-label={isFavorite ? "Retirer des favoris" : "Ajouter aux favoris"}
-              >
-                <Heart className={`w-5 h-5 ${isFavorite ? 'fill-current' : ''}`} />
-              </button>
+              {/* Bouton favoris avec gestion du rôle */}
+              {canAddToFavorites() && (
+                <button
+                  onClick={handleToggleFavorite}
+                  disabled={togglingFavorite}
+                  className={`p-3 rounded-full transition-all duration-200 ${
+                    isFavorite 
+                      ? 'bg-red-100 text-red-600 hover:bg-red-200' 
+                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200 hover:text-gray-900'
+                  } ${togglingFavorite ? 'opacity-50 cursor-not-allowed' : ''}`}
+                  aria-label={isFavorite ? "Retirer des favoris" : "Ajouter aux favoris"}
+                >
+                  {togglingFavorite ? (
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                  ) : (
+                    <Heart className={`w-5 h-5 ${isFavorite ? 'fill-current' : ''}`} />
+                  )}
+                </button>
+              )}
               
+              {/* Bouton partager */}
               <button 
+                onClick={handleShareHotel}
                 className="p-3 bg-gray-100 text-gray-600 rounded-full hover:bg-gray-200 hover:text-gray-900 transition-colors duration-200"
                 aria-label="Partager"
               >
@@ -341,6 +461,14 @@ const HotelDetailPage: React.FC = () => {
               <Check className="w-4 h-4" />
               <span className="font-medium">Actif</span>
             </div>
+            
+            {/* Indicateur favoris */}
+            {(hotel.total_favorites ?? 0) > 0 && (
+              <div className="flex items-center gap-2 px-4 py-2 bg-rose-100 text-rose-800 rounded-full">
+                <Heart className="w-4 h-4 fill-rose-800" />
+                <span className="font-medium">{hotel.total_favorites ?? 0} favoris</span>
+              </div>
+            )}
             
             {/* Bouton Google Maps */}
             {hotel.latitude && hotel.longitude && (

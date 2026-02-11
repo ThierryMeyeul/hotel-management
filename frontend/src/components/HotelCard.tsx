@@ -55,7 +55,7 @@ const HotelCard: React.FC<HotelCardProps> = ({
           route = `/admin/hotels/${hotel.id}`;
           break;
         case 'director':
-          route = `/director/hotels/${hotel.id}`;
+          route = `/director/hotels/list/${hotel.id}`;
           break;
         case 'client':
           route = `/client/hotels/${hotel.id}`;
@@ -528,7 +528,7 @@ const HotelCard: React.FC<HotelCardProps> = ({
             Détails
           </button>
           
-          {(isAuthenticated && (user?.role.toLowerCase() === 'admin' || user?.role.toLowerCase() === 'director')) && (
+          {(isAuthenticated && (user?.role.toLowerCase() === 'director')) && (
             <button
               onClick={handleManageHotel}
               className="px-4 py-2.5 border border-gray-300 text-gray-700 font-medium rounded-lg hover:bg-gray-50 transition flex items-center gap-2"

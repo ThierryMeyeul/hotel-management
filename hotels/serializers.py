@@ -1,6 +1,6 @@
 from rest_framework import serializers
 
-from .models import Hotel, HotelImage, Room
+from .models import Hotel, HotelImage, Room, Favorite
 
 
 class HotelImageSerializer(serializers.ModelSerializer):
@@ -19,21 +19,34 @@ class HotelSerializer(serializers.ModelSerializer):
     distance = serializers.SerializerMethodField()
     images = HotelImageSerializer(many=True, read_only=True)
     rooms = RoomSerializer(many=True, read_only=True)
+    is_favorite = serializers.SerializerMethodField()
+    total_favorites = serializers.IntegerField(read_only=True)
     
     class Meta:
         model = Hotel
         fields = [
             'id', 'name', 'address', 'description', 'city', 'country', 'email',
             'latitude', 'longitude', 'location', 'manager', 'created_at', 'updated_at',
-            'images', 'rooms', 'is_active', 'distance', 'website', 'phone'
+            'images', 'rooms', 'is_active', 'distance', 'website', 'phone', 'is_favorite',
+            'total_favorites',
         ]
-        read_only_fields = ['created_at', 'updated_at', 'location', 'distance']
+        read_only_fields = ['created_at', 'updated_at', 'location', 'distance', 'is_favorite', 'total_favorites']
         
     def get_distance(self, obj):
         if hasattr(obj, 'distance_km'):
             return round(obj.distance_km, 2)
         return None
 
+    def get_total_favorites(self, obj):
+        return obj.favorited_by.count()
+
+    def get_is_favorite(self, obj):
+        request = self.context.get("request")
+
+        if request and request.user.is_authenticated:
+            return obj.favorited_by.filter(user=request.user).exists()
+
+        return False
 
 class NearbyHotelsSerializer(serializers.ModelSerializer):
     class Meta:
@@ -46,3 +59,10 @@ class NearbyHotelsSerializer(serializers.ModelSerializer):
     
     def validate(self, attrs):
         return attrs
+    
+    
+class FavoriteSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Favorite
+        fields = ['id', 'user', 'hotel', 'created_at']
+        read_only_fields = ['created_at']

@@ -163,5 +163,52 @@ export const hotelService = {
     async getHotelByName(name: string): Promise<Hotel[]> {
         const response = await api.get(`/hotels/by-name/?name=${name}`);
         return response.data;
+    },
+    
+    async getHotelsByManager(managerId: number): Promise<Hotel[]> {
+        const response = await api.get(`/hotels/by-manager/${managerId}/`);
+        return response.data;
+    },
+
+    async getRoomId(roomId: number) {
+        const response = await api.get(`/hotels/rooms/${roomId}/`);
+        return response.data;
+    }, 
+
+    async getHotelById(hotelId: number) {
+        const response = await api.get(`/hotels/${hotelId}/`);
+        return response.data;
+    }, 
+
+    async getMyFavoriteHotels() {
+        const response = await api.get(`/hotels/favorites/my-hotels/`);
+        return response.data;
+    }, 
+
+    async toogleFavoriteHotel(hotelId: number) {
+        const csrfToken = getCSRFToken(); // récupère le CSRF token
+
+        const response = await api.post(
+            `/hotels/favorites/${hotelId}/toggle/`,
+            {}, // le body peut être vide si tu n'as pas de données
+            {
+                headers: {
+                    'X-CSRFToken': csrfToken // <-- ajoute ce header uniquement ici
+                },
+                withCredentials: true // important pour envoyer les cookies
+            }
+        );
+        return response.data;
+    },
+
+    async checkFavoriteHotel(hotelId: number) {
+        const response = await api.get(`/hotels/favorites/${hotelId}/check/`);
+        return response.data;
     }
+
 };
+
+function getCSRFToken(): string | null {
+  const match = document.cookie.match(/csrftoken=([\w-]+)/);
+  return match ? match[1] : null;
+}
