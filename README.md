@@ -1,72 +1,72 @@
-# 🏨 Hotel Management System
+# 🏨 Hotel Management System (Django)
 
-Une application complète de gestion hôtelière permettant d’automatiser les opérations quotidiennes d’un hôtel : gestion des chambres, réservations, clients, facturation et administration.
+Une application web complète de gestion hôtelière développée avec **Django** et **Django REST Framework**, permettant la gestion des hôtels, chambres, réservations, utilisateurs et paiements.
 
 ---
 
 ## 📌 Description
 
-**Hotel Management System** est une application conçue pour :
+Ce projet a pour objectif de digitaliser la gestion des hôtels en proposant :
 
-- Gérer les chambres et leur disponibilité
-- Permettre la réservation en ligne
-- Gérer les clients
-- Générer des factures
-- Administrer les utilisateurs et les rôles
+- 🏨 Gestion des hôtels
+- 🛏️ Gestion des chambres
+- 📅 Système de réservation
+- ❤️ Gestion des favoris
+- ⭐ Système d’avis (reviews)
+- 🔐 Authentification sécurisée (JWT / Session)
+- 👤 Gestion des utilisateurs (Client, Directeur, Admin)
 
-L’objectif principal est d’améliorer l’efficacité des processus hôteliers et de simplifier la gestion administrative.
+L'application peut être utilisée comme backend API pour une application frontend (React, mobile, etc.).
 
 ---
 
-## 🚀 Fonctionnalités
+## 🚀 Fonctionnalités principales
 
-### 🔐 Authentification & Autorisation
+### 🔐 Authentification
 - Inscription / Connexion
-- Gestion des rôles (Admin, Réceptionniste, Client)
-- Protection des routes/API
+- Authentification JWT
+- Gestion des permissions
+- Rôles utilisateurs (Client, Directeur, Admin)
 
-### 🏨 Gestion des chambres
-- Ajouter une chambre
-- Modifier les informations
-- Supprimer une chambre
-- Voir la disponibilité
+### 🏨 Gestion des hôtels
+- Ajouter / Modifier / Supprimer un hôtel
+- Upload d’images
+- Gestion des équipements
+- Activation / Désactivation
 
-### 📅 Gestion des réservations
-- Réserver une chambre
+### 🛏️ Gestion des chambres
+- Types de chambres
+- Prix par nuit
+- Disponibilité
+- Capacité
+
+### 📅 Réservations
+- Création de réservation
 - Vérification automatique de disponibilité
-- Annulation de réservation
+- Changement de statut (Pending, Confirmed, Cancelled)
 - Historique des réservations
 
-### 👤 Gestion des clients
-- Création de profil client
-- Consultation des informations
-- Historique des séjours
+### ⭐ Avis & Notes
+- Laisser un avis après réservation
+- Calcul de la note moyenne
+- Distribution des notes
 
-### 💵 Facturation
-- Calcul automatique du montant total
-- Génération de facture
-- Suivi des paiements
+### ❤️ Favoris
+- Ajouter un hôtel en favori
+- Retirer des favoris
+- Liste des hôtels favoris d’un utilisateur
 
 ---
 
 ## 🛠️ Technologies utilisées
 
-*(Adapte selon ton projet)*
-
-### Backend
-- Java / Spring Boot  
-ou  
-- Node.js / Express  
-ou  
-- Python / Django  
-
-### Frontend
-- React.js
-- HTML5 / CSS3
-- Bootstrap / Tailwind CSS
-
-### Base de données
-- MySQL / PostgreSQL / MongoDB
+- Python 3.x
+- Django
+- Django REST Framework
+- PostgreSQL / MySQL / SQLite
+- JWT Authentication
+- Pillow (gestion des images)
+- CORS Headers
 
 ---
 
@@ -75,151 +75,194 @@ ou
 ```bash
 hotel-management/
 │
-├── backend/              # API / logique serveur
-├── frontend/             # Interface utilisateur
-├── database/             # Scripts SQL ou configuration DB
-├── docs/                 # Documentation et diagrammes
-├── README.md             # Documentation du projet
-└── .gitignore
+├── manage.py
+├── hotel_management/        # Configuration principale Django
+│   ├── settings.py
+│   ├── urls.py
+│   └── wsgi.py
+│
+├── accounts/                # Gestion des utilisateurs
+├── hotels/                  # Gestion des hôtels
+├── rooms/                   # Gestion des chambres
+├── reservations/            # Gestion des réservations
+├── reviews/                 # Gestion des avis
+├── favorites/               # Gestion des favoris
+│
+├── media/                   # Images uploadées
+├── requirements.txt
+└── README.md
 ```
 
 ---
 
 ## ⚙️ Installation
 
-### 1️⃣ Cloner le dépôt
+### 1️⃣ Cloner le projet
 
 ```bash
 git clone https://github.com/ThierryMeyeul/hotel-management.git
 cd hotel-management
 ```
 
-### 2️⃣ Installation Backend
+---
 
-Selon ton stack :
+### 2️⃣ Créer un environnement virtuel
 
-#### 👉 Spring Boot
 ```bash
-mvn clean install
-mvn spring-boot:run
+python -m venv env
 ```
 
-#### 👉 Node.js
+Activation :
+
+- Windows :
 ```bash
-npm install
-npm start
+env\Scripts\activate
 ```
 
-#### 👉 Django
+- Linux / Mac :
+```bash
+source env/bin/activate
+```
+
+---
+
+### 3️⃣ Installer les dépendances
+
 ```bash
 pip install -r requirements.txt
+```
+
+---
+
+### 4️⃣ Configurer la base de données
+
+Modifier `settings.py` :
+
+```python
+DATABASES = {
+    'default': {
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': 'hotel_management',
+        'USER': 'postgres',
+        'PASSWORD': 'votre_mot_de_passe',
+        'HOST': 'localhost',
+        'PORT': '5432',
+    }
+}
+```
+
+---
+
+### 5️⃣ Appliquer les migrations
+
+```bash
+python manage.py makemigrations
+python manage.py migrate
+```
+
+---
+
+### 6️⃣ Créer un superutilisateur
+
+```bash
+python manage.py createsuperuser
+```
+
+---
+
+### 7️⃣ Lancer le serveur
+
+```bash
 python manage.py runserver
 ```
 
----
+L’API sera accessible sur :
 
-### 3️⃣ Installation Frontend (si React)
+```
+http://127.0.0.1:8000/
+```
 
-```bash
-cd frontend
-npm install
-npm start
+Admin panel :
+
+```
+http://127.0.0.1:8000/admin/
 ```
 
 ---
 
-## 🗄️ Configuration de la base de données
+## 🔑 Authentification JWT (si activée)
 
-1. Créer une base de données nommée :
+Obtenir un token :
 
 ```
-hotel_management
+POST /api/token/
 ```
 
-2. Modifier les paramètres de connexion :
+Rafraîchir le token :
 
-- `application.properties` (Spring)
-- `.env` (Node.js)
-- `settings.py` (Django)
+```
+POST /api/token/refresh/
+```
 
-Exemple :
+Utiliser dans les requêtes :
 
-```properties
-spring.datasource.url=jdbc:mysql://localhost:3306/hotel_management
-spring.datasource.username=root
-spring.datasource.password=motdepasse
+```
+Authorization: Bearer <votre_token>
 ```
 
 ---
 
-## ▶️ Lancement du projet
+## 📡 Exemples d’Endpoints API
 
-Backend :
+### Hôtels
+- `GET /api/hotels/`
+- `POST /api/hotels/`
+- `GET /api/hotels/{id}/`
 
-```bash
-mvn spring-boot:run
-```
+### Réservations
+- `POST /api/reservations/`
+- `GET /api/reservations/my-reservations/`
 
-Frontend :
+### Favoris
+- `POST /api/hotels/{id}/toggle-favorite/`
+- `GET /api/favorites/`
 
-```bash
-npm start
-```
-
-L’application sera accessible sur :
-
-```
-http://localhost:3000
-```
-ou  
-```
-http://localhost:8080
-```
+### Avis
+- `POST /api/reviews/`
+- `GET /api/hotels/{id}/reviews/`
 
 ---
 
 ## 🧪 Tests
 
-Pour exécuter les tests :
-
 ```bash
-npm test
-```
-
-ou
-
-```bash
-mvn test
+python manage.py test
 ```
 
 ---
 
-## 📸 Captures d’écran
+## 🧱 Améliorations futures
 
-*(Ajoute ici des captures de ton application si possible)*
+- Paiement en ligne (Stripe / PayPal)
+- Notifications email
+- Dashboard analytique
+- Documentation Swagger
+- Déploiement Docker
 
 ---
 
 ## 🤝 Contribution
 
-Les contributions sont les bienvenues !
-
 1. Fork le projet
-2. Crée une branche :
-   ```bash
-   git checkout -b feature/ma-fonctionnalite
-   ```
-3. Commit :
-   ```bash
-   git commit -m "Ajout d'une nouvelle fonctionnalité"
-   ```
-4. Push et ouvre une Pull Request
+2. Créer une branche
+3. Commit des modifications
+4. Ouvrir une Pull Request
 
 ---
 
 ## 📜 Licence
 
-Ce projet est sous licence **MIT**.
+Projet sous licence MIT.
 
 ---
 
@@ -231,14 +274,4 @@ GitHub : https://github.com/ThierryMeyeul
 
 ---
 
-## 📌 Améliorations futures
-
-- Notifications email
-- Paiement en ligne
-- Dashboard analytique
-- Export PDF des factures
-- API REST complète documentée (Swagger)
-
----
-
-⭐ N'hésitez pas à mettre une étoile au projet si vous l'appréciez !
+⭐ N'hésitez pas à mettre une étoile au projet !
