@@ -2,7 +2,7 @@ from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from rest_framework_simplejwt.views import TokenRefreshView
 
-from .views import RegisterView, LoginView, UserViewSet, ActivateAccountView, LogoutView, AdminDashboardViewSet
+from .views import RegisterView, LoginView, UserViewSet, ActivateAccountView, LogoutView, AdminDashboardViewSet, UserProfileView, UserDetailView, change_password
 
 
 router = DefaultRouter()
@@ -19,6 +19,10 @@ urlpatterns = [
     path('admin/activity/', AdminDashboardViewSet.as_view({'get': 'get_recent_activity'}), name='recent-activity'),
     path('admin/recent-hotels/', AdminDashboardViewSet.as_view({'get': 'get_recent_hotels'}), name='recent-hotels'),
     path('admin/recent-reservations/', AdminDashboardViewSet.as_view({'get': 'get_recent_reservations'}), name='recent-reservations'),
+    path('profile/update/', UserProfileView.as_view(), name='user-profile-update'),
+    path('profile/', UserProfileView.as_view(), name='user-profile'),
+    path('users/<int:pk>/', UserDetailView.as_view(), name='user-detail'),
+    path('change-password/', change_password, name='change-password'),
 ]
 
 urlpatterns += router.urls

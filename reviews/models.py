@@ -24,6 +24,13 @@ class Review(models.Model):
         on_delete=models.CASCADE,
         related_name='reviews'
     )
+    reservation = models.ForeignKey(
+        'reservations.Reservation',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='review'
+    )
     rating = models.IntegerField(choices=RatingChoices.choices)
     comment = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)

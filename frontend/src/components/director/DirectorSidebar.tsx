@@ -58,6 +58,11 @@ const DirectorSidebar: React.FC<DirectorSidebarProps> = ({
       path: '/director/favorites'
     },
     {
+      title: 'Avis',
+      icon: Sparkles,
+      path: '/director/reviews'
+    },
+    {
       title: 'Réservations',
       icon: Calendar,
       path: '/director/bookings',

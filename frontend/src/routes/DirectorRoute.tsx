@@ -16,6 +16,7 @@ import HotelListPage from "../pages/hotels/HotelListPage";
 import HotelDetailPage from "../pages/hotels/HotelDetailsPage";
 import BookingPage from "../pages/booking/BookingPage";
 import UserFavorites from "../pages/favorite/UserFavorite";
+import DirectorHotelReviewsPage from "../pages/director/DirectorHotelReviews";
 
 export default function DirectorRoutes() {
   return (
@@ -38,6 +39,7 @@ export default function DirectorRoutes() {
             <Route path="bookings/mine" element={<AdminReservationsPage />} />
             <Route path="booking/create" element={<BookingPage />} />
             <Route path="favorites" element={<UserFavorites />} />
+            <Route path="reviews" element={<DirectorHotelReviewsPage />} />
         </Route>    
       <Route path="*" element={<Navigate to="/not-authorized" replace />} />
     </Routes>

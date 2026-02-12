@@ -201,6 +201,7 @@ const ReservationList: React.FC = () => {
           try {
             const userResponse: User = await getUserById(reservation.user);
             const roomResponse = await hotelService.getRoomId(reservation.room);
+            console.log
             const hotelResponse = await hotelService.getHotelByName(reservation.hotel_name || '');
             const hotel = hotelResponse[0] || null;
             return {

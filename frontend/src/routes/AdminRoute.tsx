@@ -14,6 +14,7 @@ import HelpAndSupport from "../pages/admin/HelpAndSupport";
 import AdminReservationDetail from "../pages/reservations/ReservationDetail";
 import DirectorDetailPage from "../pages/admin/managers/DirectorDetailPage";
 import UserFavorite from "../pages/favorite/UserFavorite";
+import UserProfilePage from "../pages/profile/UserProfilePage";
 
 export default function AdminRoutes() {
   return (
@@ -34,6 +35,7 @@ export default function AdminRoutes() {
         <Route path="settings" element={<AdminSettings />} />
         <Route path="help" element={<HelpAndSupport />} />
         <Route path="favorites" element={<UserFavorite />} />
+        <Route path="profile" element={<UserProfilePage />} />
         {/* blocage admin/* inconnu */}
         <Route path="*" element={<Navigate to="/not-authorized" replace />} />
       </Route>

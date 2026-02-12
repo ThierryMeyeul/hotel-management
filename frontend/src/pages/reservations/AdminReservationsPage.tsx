@@ -35,15 +35,19 @@ import {
   FileText as FileTextIcon,
   AlertCircle,
   ExternalLink,
-  Image as ImageIcon
+  Image as ImageIcon,
+  MessageSquare
 } from 'lucide-react';
 import Loader from '../../components/Loader';
 import { bookingService } from '../../services/booking.service';
 import { hotelService } from '../../services/hotel.service';
+import { reviewService } from '../../services/review.service';
+import ReviewModal from '../../components/ReviewModal';
 import type { Hotel } from '../../types/hotel';
 import type { Reservation, Payment, Invoice } from '../../types/booking';
 import { useAuth } from '../../context/AuthContext';
 import type { PaymentData } from '../../types/booking';
+import type { Review } from '../../types/review';
 
 interface HotelImage {
   id: number;
@@ -51,26 +55,6 @@ interface HotelImage {
   caption: string;
   is_cover: boolean;
 }
-
-// interface HotelDetails {
-//   id: number;
-//   name: string;
-//   address: string;
-//   description: string;
-//   city: string;
-//   country: string;
-//   email: string;
-//   phone: string;
-//   website: string;
-//   latitude: number;
-//   longitude: number;
-//   manager: number;
-//   is_active: boolean;
-//   images: HotelImage[];
-//   rooms: any[];
-//   created_at: string;
-//   updated_at: string;
-// }
 
 interface ReservationWithDetails extends Reservation {
   hotel_details?: Hotel;
@@ -112,6 +96,14 @@ const AdminReservationsPage: React.FC = () => {
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [showInvoiceModal, setShowInvoiceModal] = useState(false);
   const [currentInvoice, setCurrentInvoice] = useState<Invoice | null>(null);
+  
+  // États pour les avis
+  const [showReviewModal, setShowReviewModal] = useState(false);
+  const [selectedHotelForReview, setSelectedHotelForReview] = useState<{ id: number; name: string } | null>(null);
+  const [selectedReservationForReview, setSelectedReservationForReview] = useState<number | undefined>();
+  const [existingReview, setExistingReview] = useState<Review | null>(null);
+  const [userReviews, setUserReviews] = useState<Review[]>([]);
+  const [eligibleReservations, setEligibleReservations] = useState<any[]>([]);
   
   // États de filtrage
   const [searchTerm, setSearchTerm] = useState('');
@@ -198,12 +190,69 @@ const AdminReservationsPage: React.FC = () => {
 
   useEffect(() => {
     fetchMyReservations();
+    fetchEligibleReservations();
+    fetchUserReviews();
   }, []);
 
   useEffect(() => {
     filterReservations();
     calculateStats();
   }, [reservations, searchTerm, statusFilter, paymentFilter, dateRange]);
+
+  // Fonctions pour les avis
+  const fetchUserReviews = async () => {
+    try {
+      const reviews = await reviewService.getMyReviews();
+      setUserReviews(reviews);
+    } catch (error) {
+      console.error('Erreur lors du chargement des avis:', error);
+    }
+  };
+
+  const fetchEligibleReservations = async () => {
+    try {
+      const reservations = await reviewService.getEligibleReservations();
+      setEligibleReservations(reservations);
+    } catch (error) {
+      console.error('Erreur lors du chargement des réservations éligibles:', error);
+    }
+  };
+
+  const checkCanReview = async (hotelId: number, reservationId?: number) => {
+    try {
+      const result = await reviewService.canReviewHotel(hotelId);
+      
+      if (result.existing_review) {
+        setExistingReview(result.existing_review);
+      } else {
+        setExistingReview(null);
+      }
+      
+      return result.can_review;
+    } catch (error) {
+      console.error('Erreur lors de la vérification:', error);
+      return false;
+    }
+  };
+
+  const handleOpenReviewModal = async (hotelId: number, hotelName: string, reservationId?: number) => {
+    const canReview = await checkCanReview(hotelId, reservationId);
+    
+    if (!canReview && !existingReview) {
+      alert('Vous ne pouvez pas laisser d\'avis pour cet hôtel actuellement.');
+      return;
+    }
+    
+    setSelectedHotelForReview({ id: hotelId, name: hotelName });
+    setSelectedReservationForReview(reservationId);
+    setShowReviewModal(true);
+  };
+
+  const handleReviewSuccess = async () => {
+    await fetchMyReservations();
+    await fetchUserReviews();
+    await fetchEligibleReservations();
+  };
 
   // Fonctions principales
   const fetchMyReservations = async () => {
@@ -225,33 +274,8 @@ const AdminReservationsPage: React.FC = () => {
       const enrichedReservations = await Promise.all(
         reservationsData.map(async (reservation) => {
           try {
-            // Si on a déjà les informations de l'hôtel dans la réservation
             if (reservation.hotel_name) {
               const hotelDetails = await hotelService.getHotelByName(reservation.hotel_name);
-              // const hotelData: HotelDetails = {
-              //   id: 0,
-              //   name: reservation.hotel_name || 'Hôtel inconnu',
-              //   address: reservation.hotel_address || 'Adresse non spécifiée',
-              //   description: '',
-              //   city: reservation.hotel_city || '',
-              //   country: reservation.hotel_country || '',
-              //   email: reservation.hotel_email || '',
-              //   phone: reservation.hotel_phone || '',
-              //   website: reservation.hotel_website || '',
-              //   latitude: 0,
-              //   longitude: 0,
-              //   manager: 0,
-              //   is_active: true,
-              //   images: reservation.hotel_image ? [{
-              //     id: 0,
-              //     image: reservation.hotel_image,
-              //     caption: reservation.hotel_name || '',
-              //     is_cover: true
-              //   }] : [],
-              //   rooms: [],
-              //   created_at: '',
-              //   updated_at: ''
-              // };
               
               return { 
                 ...reservation, 
@@ -280,7 +304,6 @@ const AdminReservationsPage: React.FC = () => {
   const filterReservations = () => {
     let filtered = [...reservations];
 
-    // Filtre par recherche
     if (searchTerm) {
       const term = searchTerm.toLowerCase();
       filtered = filtered.filter(res => 
@@ -294,12 +317,10 @@ const AdminReservationsPage: React.FC = () => {
       );
     }
 
-    // Filtre par statut
     if (statusFilter !== 'all') {
       filtered = filtered.filter(res => res.status === statusFilter);
     }
 
-    // Filtre par statut de paiement
     if (paymentFilter !== 'all') {
       filtered = filtered.filter(res => {
         if (!res.payment) return paymentFilter === 'none';
@@ -307,7 +328,6 @@ const AdminReservationsPage: React.FC = () => {
       });
     }
 
-    // Filtre par date
     if (dateRange.start) {
       const startDate = new Date(dateRange.start);
       filtered = filtered.filter(res => new Date(res.check_in) >= startDate);
@@ -317,7 +337,6 @@ const AdminReservationsPage: React.FC = () => {
       filtered = filtered.filter(res => new Date(res.check_out) <= endDate);
     }
 
-    // Tri
     if (sortConfig) {
       filtered.sort((a, b) => {
         let aValue: any = a[sortConfig.key as keyof ReservationWithDetails];
@@ -445,14 +464,10 @@ const AdminReservationsPage: React.FC = () => {
       };
       
       const payment = await bookingService.createPayment(paymentData);
-      
-      // Générer la facture automatiquement
       const invoice = await bookingService.generateInvoice(payment.id);
       
-      // Mettre à jour la liste
       await fetchMyReservations();
       
-      // Fermer le modal et réinitialiser le formulaire
       setShowPaymentModal(false);
       setPaymentForm({
         payment_method: 'CREDIT_CARD',
@@ -463,7 +478,6 @@ const AdminReservationsPage: React.FC = () => {
         notes: ''
       });
       
-      // Afficher la facture générée
       setCurrentInvoice(invoice);
       setShowInvoiceModal(true);
       
@@ -483,26 +497,6 @@ const AdminReservationsPage: React.FC = () => {
       console.error('Error fetching invoice:', error);
       alert('Erreur lors du chargement de la facture');
     }
-  };
-
-  const handleDownloadInvoice = async (paymentId: number, invoiceNumber: string) => {
-    // try {
-    //   const pdfData = await bookingService.downloadInvoicePDF(paymentId);
-      
-    //   // Créer un blob et télécharger
-    //   const blob = new Blob([pdfData], { type: 'application/pdf' });
-    //   const url = URL.createObjectURL(blob);
-    //   const a = document.createElement('a');
-    //   a.href = url;
-    //   a.download = `facture-${invoiceNumber}.pdf`;
-    //   document.body.appendChild(a);
-    //   a.click();
-    //   document.body.removeChild(a);
-    //   URL.revokeObjectURL(url);
-    // } catch (error) {
-    //   console.error('Error downloading invoice:', error);
-    //   alert('Erreur lors du téléchargement de la facture');
-    // }
   };
 
   const handleCancelReservations = async () => {
@@ -678,7 +672,6 @@ const AdminReservationsPage: React.FC = () => {
                 </button>
               </div>
 
-              {/* Détails de la réservation */}
               <div className="bg-gray-50 rounded-lg p-4 mb-6">
                 <div className="grid grid-cols-2 gap-4">
                   <div>
@@ -702,7 +695,6 @@ const AdminReservationsPage: React.FC = () => {
                 </div>
               </div>
 
-              {/* Sélection de la méthode de paiement */}
               <div className="mb-6">
                 <h3 className="text-lg font-semibold mb-4">Méthode de paiement</h3>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
@@ -729,7 +721,6 @@ const AdminReservationsPage: React.FC = () => {
                 </div>
               </div>
 
-              {/* Formulaire de carte de crédit */}
               {paymentForm.payment_method === 'CREDIT_CARD' && (
                 <div className="space-y-4 mb-6">
                   <div>
@@ -787,7 +778,6 @@ const AdminReservationsPage: React.FC = () => {
                 </div>
               )}
 
-              {/* Notes */}
               <div className="mb-8">
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Notes (optionnel)
@@ -800,7 +790,6 @@ const AdminReservationsPage: React.FC = () => {
                 />
               </div>
 
-              {/* Actions */}
               <div className="flex justify-end gap-3">
                 <button
                   onClick={() => setShowPaymentModal(false)}
@@ -825,7 +814,6 @@ const AdminReservationsPage: React.FC = () => {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
             <div className="p-8">
-              {/* En-tête de la facture */}
               <div className="flex justify-between items-start mb-8">
                 <div>
                   <h2 className="text-3xl font-bold text-gray-900 mb-2">FACTURE</h2>
@@ -842,7 +830,6 @@ const AdminReservationsPage: React.FC = () => {
                 </div>
               </div>
 
-              {/* Informations client et hôtel */}
               <div className="grid grid-cols-2 gap-8 mb-8">
                 <div className="bg-gray-50 p-4 rounded-lg">
                   <h3 className="font-bold text-gray-900 mb-2">Facturé à</h3>
@@ -859,7 +846,6 @@ const AdminReservationsPage: React.FC = () => {
                 </div>
               </div>
 
-              {/* Détails de la réservation */}
               <div className="bg-blue-50 p-4 rounded-lg mb-8">
                 <h3 className="font-bold text-gray-900 mb-4">Détails du séjour</h3>
                 <div className="grid grid-cols-4 gap-4">
@@ -884,7 +870,6 @@ const AdminReservationsPage: React.FC = () => {
                 </div>
               </div>
 
-              {/* Tableau des articles */}
               <div className="mb-8">
                 <table className="w-full border-collapse">
                   <thead>
@@ -919,7 +904,6 @@ const AdminReservationsPage: React.FC = () => {
                       </td>
                     </tr>
                     
-                    {/* Total */}
                     <tr className="bg-gray-50">
                       <td className="py-4 px-4" colSpan={3}>
                         <p className="font-bold text-lg">Total</p>
@@ -934,17 +918,15 @@ const AdminReservationsPage: React.FC = () => {
                 </table>
               </div>
 
-              {/* Notes */}
               <div className="text-sm text-gray-600 mb-8">
                 <p className="mb-2">• Paiement dû dans les 30 jours suivant la réception</p>
                 <p>• Pour toute question, contactez-nous à {selectedReservation.hotel_email || selectedReservation.hotel_details?.email}</p>
               </div>
 
-              {/* Actions */}
               <div className="flex justify-between items-center pt-6 border-t border-gray-200">
                 <div className="flex gap-3">
                   <button
-                    onClick={() => handleDownloadInvoice(currentInvoice.payment, currentInvoice.invoice_number)}
+                    onClick={() => {}}
                     className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
                   >
                     <Download className="w-4 h-4" />
@@ -1082,7 +1064,6 @@ const AdminReservationsPage: React.FC = () => {
         {/* Filtres */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 mb-6">
           <div className="flex flex-col md:flex-row gap-4">
-            {/* Recherche */}
             <div className="flex-1">
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
@@ -1096,7 +1077,6 @@ const AdminReservationsPage: React.FC = () => {
               </div>
             </div>
 
-            {/* Filtre statut réservation */}
             <div>
               <select
                 value={statusFilter}
@@ -1111,7 +1091,6 @@ const AdminReservationsPage: React.FC = () => {
               </select>
             </div>
 
-            {/* Filtre statut paiement */}
             <div>
               <select
                 value={paymentFilter}
@@ -1126,7 +1105,6 @@ const AdminReservationsPage: React.FC = () => {
               </select>
             </div>
 
-            {/* Dates */}
             <div className="grid grid-cols-2 gap-2">
               <input
                 type="date"
@@ -1144,7 +1122,6 @@ const AdminReservationsPage: React.FC = () => {
               />
             </div>
 
-            {/* Bouton effacer filtres */}
             {(searchTerm || statusFilter !== 'all' || paymentFilter !== 'all' || dateRange.start || dateRange.end) && (
               <button
                 onClick={() => {
@@ -1191,7 +1168,6 @@ const AdminReservationsPage: React.FC = () => {
                 }) && (
                   <button
                     onClick={() => {
-                      // Traiter les paiements en masse
                       alert('Fonctionnalité de paiement en masse à implémenter');
                     }}
                     className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
@@ -1238,7 +1214,7 @@ const AdminReservationsPage: React.FC = () => {
                       className="w-4 h-4 text-indigo-600 rounded focus:ring-indigo-500"
                     />
                   </th>
-                  <th 
+                  {/* <th 
                     className="py-3 px-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
                     onClick={() => handleSort('id')}
                   >
@@ -1246,7 +1222,7 @@ const AdminReservationsPage: React.FC = () => {
                       ID
                       <ArrowUpDown className="w-3 h-3" />
                     </div>
-                  </th>
+                  </th> */}
                   <th className="py-3 px-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
                     Hôtel
                   </th>
@@ -1278,6 +1254,9 @@ const AdminReservationsPage: React.FC = () => {
                     Statut
                   </th>
                   <th className="py-3 px-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                    Avis
+                  </th>
+                  <th className="py-3 px-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
                     Actions
                   </th>
                 </tr>
@@ -1285,7 +1264,7 @@ const AdminReservationsPage: React.FC = () => {
               <tbody className="divide-y divide-gray-200">
                 {currentReservations.length === 0 ? (
                   <tr>
-                    <td colSpan={9} className="py-8 text-center text-gray-500">
+                    <td colSpan={10} className="py-8 text-center text-gray-500">
                       <div className="flex flex-col items-center justify-center">
                         <FileText className="w-12 h-12 text-gray-300 mb-3" />
                         <p className="text-lg">Aucune réservation trouvée</p>
@@ -1309,6 +1288,10 @@ const AdminReservationsPage: React.FC = () => {
                     const paymentStatus = getPaymentStatusText(reservation.payment);
                     const nights = calculateNights(reservation.check_in, reservation.check_out);
                     const hotel = reservation.hotel_details;
+                    const userReview = userReviews.find(
+                      // review => review.hotel === (hotel?.id || parseInt(reservation.hotel_id?.toString() || '0'))
+                      review => review.hotel === (hotel?.id || 0)
+                    );
                     
                     return (
                       <tr 
@@ -1324,28 +1307,17 @@ const AdminReservationsPage: React.FC = () => {
                           />
                         </td>
                         
-                        <td className="py-3 px-4">
+                        {/* <td className="py-3 px-4">
                           <div className="font-mono font-medium text-gray-900">
                             #{reservation.id}
                           </div>
                           <div className="text-xs text-gray-500">
                             {formatDate(reservation.created_at)}
                           </div>
-                        </td>
+                        </td> */}
                         
                         <td className="py-3 px-4">
                           <div className="flex items-center gap-3">
-                            {/* {hotel?.images?.[0]?.image ? (
-                              <img 
-                                src={hotel.images[0].image} 
-                                alt={hotel.name}
-                                className="w-12 h-12 rounded-lg object-cover"
-                              />
-                            ) : (
-                              <div className="w-12 h-12 bg-gradient-to-br from-indigo-100 to-pink-50 rounded-lg flex items-center justify-center">
-                                <Building className="w-6 h-6 text-indigo-600" />
-                              </div>
-                            )} */}
                             <div className="flex-1">
                               <div className="font-medium text-gray-900 line-clamp-1">
                                 {hotel?.name || reservation.hotel_name}
@@ -1442,6 +1414,63 @@ const AdminReservationsPage: React.FC = () => {
                             </span>
                           </div>
                         </td>
+
+                        <td className="py-3 px-4">
+                          {reservation.status === 'COMPLETED' ? (
+                            <div className="flex flex-col items-start">
+                              {userReview ? (
+                                <div className="space-y-2">
+                                  <button
+                                    onClick={() => handleOpenReviewModal(
+                                      hotel?.id || 0,
+                                      hotel?.name || reservation.hotel_name || '',
+                                      reservation.id
+                                    )}
+                                    className="flex items-center gap-2 px-3 py-1.5 bg-yellow-50 text-yellow-700 rounded-lg hover:bg-yellow-100 transition-colors group"
+                                  >
+                                    <div className="flex items-center">
+                                      {[1, 2, 3, 4, 5].map((star) => (
+                                        <Star
+                                          key={star}
+                                          className={`w-3 h-3 ${
+                                            star <= userReview.rating
+                                              ? 'fill-yellow-400 text-yellow-400'
+                                              : 'text-gray-300'
+                                          }`}
+                                        />
+                                      ))}
+                                    </div>
+                                    <span className="text-xs font-medium">Modifier</span>
+                                  </button>
+                                  <div className="text-xs text-gray-600 max-w-[200px] line-clamp-2">
+                                    "{userReview.comment.substring(0, 50)}
+                                    {userReview.comment.length > 50 ? '...' : ''}"
+                                  </div>
+                                  <span className="text-xs text-gray-400">
+                                    {new Date(userReview.created_at).toLocaleDateString('fr-FR')}
+                                  </span>
+                                </div>
+                              ) : (
+                                <button
+                                  onClick={() => handleOpenReviewModal(
+                                    hotel?.id || 0,
+                                    hotel?.name || reservation.hotel_name || '',
+                                    reservation.id
+                                  )}
+                                  className="flex items-center gap-2 px-3 py-1.5 bg-indigo-50 text-indigo-700 rounded-lg hover:bg-indigo-100 transition-colors"
+                                >
+                                  <MessageSquare className="w-4 h-4" />
+                                  <span className="text-xs font-medium">Laisser un avis</span>
+                                </button>
+                              )}
+                            </div>
+                          ) : (
+                            <div className="flex items-center gap-2 text-gray-400">
+                              <Star className="w-4 h-4" />
+                              <span className="text-xs">Disponible après le séjour</span>
+                            </div>
+                          )}
+                        </td>
                         
                         <td className="py-3 px-4">
                           <div className="flex items-center gap-1">
@@ -1473,16 +1502,6 @@ const AdminReservationsPage: React.FC = () => {
                                 <CreditCard className="w-4 h-4" />
                               </button>
                             )}
-                            
-                            {/* {reservation.payment?.invoice && (
-                              <button
-                                onClick={() => handleDownloadInvoice(reservation.payment!.id, reservation.payment.invoice.invoice_number)}
-                                className="p-2 text-purple-600 hover:bg-purple-50 rounded-lg transition-colors"
-                                title="Télécharger facture"
-                              >
-                                <Download className="w-4 h-4" />
-                              </button>
-                            )} */}
                             
                             <div className="relative">
                               <button
@@ -1600,6 +1619,24 @@ const AdminReservationsPage: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* Modal d'avis */}
+      {showReviewModal && selectedHotelForReview && (
+        <ReviewModal
+          isOpen={showReviewModal}
+          onClose={() => {
+            setShowReviewModal(false);
+            setSelectedHotelForReview(null);
+            setSelectedReservationForReview(undefined);
+            setExistingReview(null);
+          }}
+          hotelId={selectedHotelForReview.id}
+          hotelName={selectedHotelForReview.name}
+          reservationId={selectedReservationForReview}
+          existingReview={existingReview}
+          onSuccess={handleReviewSuccess}
+        />
+      )}
     </div>
   );
 };

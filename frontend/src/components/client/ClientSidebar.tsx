@@ -50,17 +50,6 @@ const ClientSidebar: React.FC<ClientSidebarProps> = ({
       title: 'Favoris',
       icon: Heart,
       path: '/client/favorites'
-    },
-    {
-      title: 'Paiements',
-      icon: CreditCard,
-      path: '/client/payments'
-    },
-    {
-      title: 'Notifications',
-      icon: Bell,
-      path: '/client/notifications',
-      badge: '2'
     }
   ];
 

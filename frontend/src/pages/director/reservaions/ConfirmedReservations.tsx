@@ -55,14 +55,62 @@ import {
   CheckCircle2,
   Clock4,
   MapPinCheck,
-  ShieldAlert
+  ShieldAlert, 
+  XCircle
 } from 'lucide-react';
 import { bookingService } from '../../../services/booking.service';
+import { hotelService } from '../../../services/hotel.service';
+import { getUserById } from '../../../services/auth.service';
 import { format, differenceInDays, startOfDay, addDays, isAfter, isBefore } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { toast } from 'react-toastify';
 
-// Types pour les réservations (basé sur votre modèle Django)
+// Types pour les réservations avec détails (basé sur le modèle AdminReservationsPage)
+interface Hotel {
+  id: number;
+  name: string;
+  address: string;
+  description: string;
+  city: string;
+  country: string;
+  email: string;
+  phone: string;
+  website?: string;
+  latitude: number;
+  longitude: number;
+  manager: number;
+  manager_id?: number;
+  created_at: string;
+  updated_at: string;
+  images: Array<{
+    id: number;
+    image: string;
+    caption: string;
+    is_cover: boolean;
+  }>;
+  rooms: any[];
+  is_active: boolean;
+  distance?: number | null;
+  is_favorite?: boolean;
+  total_favorites?: number;
+}
+
+interface Payment {
+  id: number;
+  reservation: number;
+  amount: string;
+  payment_date: string;
+  payment_method: string;
+  status: 'PENDING' | 'COMPLETED' | 'FAILED';
+  transaction_id?: string;
+  invoice?: {
+    id: number;
+    invoice_number: string;
+    issued_date: string;
+    payment: number;
+  };
+}
+
 interface Reservation {
   id: number;
   user: number;
@@ -73,7 +121,7 @@ interface Reservation {
   total_price: string;
   created_at: string;
   updated_at: string;
-  hotel_name: string | null;
+  hotel_name?: string | null;
   hotel_id?: number;
   guest_name?: string;
   guest_email?: string;
@@ -89,21 +137,17 @@ interface Reservation {
   hotel_image?: string;
   hotel_rating?: number;
   hotel_amenities?: string[];
-  payment_info?: {
-    id: number;
-    amount: string;
-    payment_date: string;
-    payment_method: string;
-    status: string;
-    invoice?: {
-      id: number;
-      invoice_number: string;
-      issued_date: string;
-    };
-  };
+  payment_info?: Payment;
   notes?: string;
   special_requests?: string;
   breakfast_included?: boolean;
+  user_name?: string;
+  user_email?: string;
+  user_phone?: string;
+}
+
+interface ReservationWithDetails extends Reservation {
+  hotel_details?: Hotel;
 }
 
 // Types pour les filtres
@@ -123,8 +167,8 @@ const ConfirmedReservations: React.FC = () => {
   const navigate = useNavigate();
   
   // États pour les données
-  const [reservations, setReservations] = useState<Reservation[]>([]);
-  const [filteredReservations, setFilteredReservations] = useState<Reservation[]>([]);
+  const [reservations, setReservations] = useState<ReservationWithDetails[]>([]);
+  const [filteredReservations, setFilteredReservations] = useState<ReservationWithDetails[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   
@@ -146,11 +190,12 @@ const ConfirmedReservations: React.FC = () => {
   });
   
   // États pour les actions
-  const [selectedReservation, setSelectedReservation] = useState<Reservation | null>(null);
+  const [selectedReservation, setSelectedReservation] = useState<ReservationWithDetails | null>(null);
   const [expandedReservation, setExpandedReservation] = useState<number | null>(null);
   const [showFilters, setShowFilters] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [sendingReminder, setSendingReminder] = useState<number | null>(null);
+  const [processingCheckIn, setProcessingCheckIn] = useState<number | null>(null);
   
   // États pour les statistiques locales
   const [stats, setStats] = useState({
@@ -163,17 +208,20 @@ const ConfirmedReservations: React.FC = () => {
     top_hotel: { name: '', count: 0 }
   });
 
-  // Extraire les hôtels uniques depuis les réservations
+  // Extraire les hôtels uniques depuis les réservations enrichies
   const hotels = useMemo(() => {
     const hotelMap = new Map<string, { id?: number; name: string }>();
     
     reservations.forEach(reservation => {
-      if (reservation.hotel_name) {
-        const key = reservation.hotel_id ? `${reservation.hotel_id}` : reservation.hotel_name;
+      const hotelName = reservation.hotel_details?.name || reservation.hotel_name;
+      const hotelId = reservation.hotel_details?.id || reservation.hotel_id;
+      
+      if (hotelName) {
+        const key = hotelId ? `${hotelId}` : hotelName;
         if (!hotelMap.has(key)) {
           hotelMap.set(key, {
-            id: reservation.hotel_id,
-            name: reservation.hotel_name
+            id: hotelId,
+            name: hotelName
           });
         }
       }
@@ -182,7 +230,7 @@ const ConfirmedReservations: React.FC = () => {
     return Array.from(hotelMap.values());
   }, [reservations]);
 
-  // Charger les réservations confirmées
+  // Charger les réservations confirmées avec détails
   useEffect(() => {
     fetchConfirmedReservations();
   }, []);
@@ -200,19 +248,75 @@ const ConfirmedReservations: React.FC = () => {
       setLoading(true);
       setError(null);
       
+      // Récupérer toutes les réservations du directeur
       const response = await bookingService.getDirectorBookings();
-      const reservationsData = response.reservations || response || [];
+      let reservationsData: Reservation[] = [];
+      
+      if (Array.isArray(response)) {
+        reservationsData = response;
+      } else if (response?.data && Array.isArray(response.data)) {
+        reservationsData = response.data;
+      } else if (Array.isArray(response?.reservations)) {
+        reservationsData = response.reservations;
+      }
       
       // Filtrer pour ne garder que les réservations CONFIRMED
       const confirmedReservations = reservationsData.filter(
         (reservation: Reservation) => reservation.status === 'CONFIRMED'
       );
       
-      setReservations(confirmedReservations);
+      // Enrichir les données avec les détails de l'hôtel (comme dans AdminReservationsPage)
+      const enrichedReservations = await Promise.all(
+        confirmedReservations.map(async (reservation: Reservation) => {
+          try {
+            let hotelDetails = null;
+            let userDetails = null;
+            
+            // Récupérer les détails de l'hôtel par nom ou par ID
+            if (reservation.hotel_name) {
+              try {
+                const hotelData = await hotelService.getHotelByName(reservation.hotel_name);
+                hotelDetails = Array.isArray(hotelData) ? hotelData[0] : hotelData;
+                console
+              } catch (error) {
+                console.warn(`Impossible de récupérer les détails de l'hôtel: ${reservation.hotel_name}`);
+              }
+            } else if (reservation.hotel_id) {
+              try {
+                const hotelData = await hotelService.getHotelById(reservation.hotel_id);
+                hotelDetails = hotelData;
+              } catch (error) {
+                console.warn(`Impossible de récupérer les détails de l'hôtel ID: ${reservation.hotel_id}`);
+              }
+            }
+            if (reservation.user) {
+              try {
+                const userData = await getUserById(reservation.user);
+                userDetails = userData
+              } catch (error) {
+                console.warn(`Impossible de récupérer les détails de l'utilisateur ID : ${reservation.user}`)
+              }
+            } 
+            return { 
+              ...reservation, 
+              user_email: userDetails.email,
+              user_phone: userDetails.phone_number,
+              user_name: userDetails.first_name + ' ' + userDetails.last_name + ' - @' + userDetails.username,
+              hotel_details: hotelDetails,
+              hotel_image: reservation.hotel_image || hotelDetails?.images?.[0]?.image || '/api/placeholder/400/300'
+            };
+          } catch (error) {
+            console.error('Erreur lors de l\'enrichissement de la réservation:', error);
+            return reservation;
+          }
+        })
+      );
+      
+      setReservations(enrichedReservations);
       
     } catch (err: any) {
       console.error('Erreur lors du chargement des réservations confirmées:', err);
-      setError(err.response?.data?.message || 'Erreur de connexion au serveur');
+      setError(err.response?.data?.message || err.message || 'Erreur de connexion au serveur');
       toast.error('Impossible de charger les réservations confirmées');
     } finally {
       setLoading(false);
@@ -225,10 +329,13 @@ const ConfirmedReservations: React.FC = () => {
     // Filtre par hôtel
     if (filters.hotel !== 'all') {
       filtered = filtered.filter(r => {
-        if (r.hotel_id) {
-          return r.hotel_id.toString() === filters.hotel;
+        const hotelId = r.hotel_details?.id || r.hotel_id;
+        const hotelName = r.hotel_details?.name || r.hotel_name;
+        
+        if (hotelId) {
+          return hotelId.toString() === filters.hotel;
         }
-        return r.hotel_name === filters.hotel;
+        return hotelName === filters.hotel;
       });
     }
 
@@ -273,14 +380,24 @@ const ConfirmedReservations: React.FC = () => {
     // Filtre par recherche
     if (filters.search) {
       const searchTerm = filters.search.toLowerCase();
-      filtered = filtered.filter(r => 
-        (r.guest_name && r.guest_name.toLowerCase().includes(searchTerm)) ||
-        (r.guest_email && r.guest_email.toLowerCase().includes(searchTerm)) ||
-        (r.hotel_name && r.hotel_name.toLowerCase().includes(searchTerm)) ||
-        (r.room_number && r.room_number.toLowerCase().includes(searchTerm)) ||
-        (r.room_type && r.room_type.toLowerCase().includes(searchTerm)) ||
-        r.id.toString().includes(searchTerm)
-      );
+      filtered = filtered.filter(r => {
+        const hotelName = r.hotel_details?.name || r.hotel_name || '';
+        const hotelCity = r.hotel_details?.city || r.hotel_city || '';
+        const guestName = r.guest_name || r.user_name || '';
+        const guestEmail = r.guest_email || r.user_email || '';
+        const roomNumber = r.room_number || '';
+        const roomType = r.room_type || '';
+        
+        return (
+          guestName.toLowerCase().includes(searchTerm) ||
+          guestEmail.toLowerCase().includes(searchTerm) ||
+          hotelName.toLowerCase().includes(searchTerm) ||
+          hotelCity.toLowerCase().includes(searchTerm) ||
+          roomNumber.toLowerCase().includes(searchTerm) ||
+          roomType.toLowerCase().includes(searchTerm) ||
+          r.id.toString().includes(searchTerm)
+        );
+      });
     }
 
     // Tri
@@ -318,7 +435,7 @@ const ConfirmedReservations: React.FC = () => {
     setCurrentPage(1); // Retour à la première page après filtrage
   };
 
-  const calculateLocalStats = (data: Reservation[]) => {
+  const calculateLocalStats = (data: ReservationWithDetails[]) => {
     const total = data.length;
     
     const total_revenue = data.reduce((sum, r) => {
@@ -374,9 +491,10 @@ const ConfirmedReservations: React.FC = () => {
     // Hôtel avec le plus de réservations confirmées
     const hotelCounts = new Map<string, number>();
     data.forEach(r => {
-      if (r.hotel_name) {
-        const count = hotelCounts.get(r.hotel_name) || 0;
-        hotelCounts.set(r.hotel_name, count + 1);
+      const hotelName = r.hotel_details?.name || r.hotel_name;
+      if (hotelName) {
+        const count = hotelCounts.get(hotelName) || 0;
+        hotelCounts.set(hotelName, count + 1);
       }
     });
     
@@ -423,11 +541,23 @@ const ConfirmedReservations: React.FC = () => {
   };
 
   // Gérer les actions
-  const handleViewDetails = (reservation: Reservation) => {
+  const handleViewDetails = (reservation: ReservationWithDetails) => {
     navigate(`/director/reservations/${reservation.id}`);
   };
 
-  const handleSendReminder = async (reservation: Reservation) => {
+  const handleViewHotel = (hotelId?: number) => {
+    if (hotelId) {
+      navigate(`/director/hotels/${hotelId}`);
+    }
+  };
+
+  const handleViewManager = (managerId?: number) => {
+    if (managerId) {
+      navigate(`/director/users/${managerId}`);
+    }
+  };
+
+  const handleSendReminder = async (reservation: ReservationWithDetails) => {
     try {
       setSendingReminder(reservation.id);
       
@@ -436,7 +566,8 @@ const ConfirmedReservations: React.FC = () => {
       
       await new Promise(resolve => setTimeout(resolve, 1000)); // Simulation
       
-      toast.success(`Rappel envoyé à ${reservation.guest_name || 'le client'}`);
+      const guestName = reservation.guest_name || reservation.user_name || 'le client';
+      toast.success(`Rappel envoyé à ${guestName}`);
     } catch (err) {
       console.error('Erreur lors de l\'envoi du rappel:', err);
       toast.error('Erreur lors de l\'envoi du rappel');
@@ -445,18 +576,34 @@ const ConfirmedReservations: React.FC = () => {
     }
   };
 
-  const handleCheckIn = async (reservation: Reservation) => {
+  const handleCheckIn = async (reservation: ReservationWithDetails) => {
     try {
+      setProcessingCheckIn(reservation.id);
+      
+      // Mettre à jour le statut de la réservation
       // await bookingService.updateBookingStatus(reservation.id, 'CHECKED_IN');
-      toast.success(`Check-in effectué pour ${reservation.guest_name || 'le client'}`);
+      
+      const guestName = reservation.guest_name || reservation.user_name || 'le client';
+      toast.success(`Check-in effectué pour ${guestName}`);
       
       // Recharger les réservations
-      setTimeout(() => {
-        fetchConfirmedReservations();
-      }, 500);
+      await fetchConfirmedReservations();
     } catch (err) {
       console.error('Erreur lors du check-in:', err);
       toast.error('Erreur lors du check-in');
+    } finally {
+      setProcessingCheckIn(null);
+    }
+  };
+
+  const handleContactGuest = (reservation: ReservationWithDetails, type: 'email' | 'phone') => {
+    const email = reservation.guest_email || reservation.user_email;
+    const phone = reservation.guest_phone || reservation.user_phone;
+    
+    if (type === 'email' && email) {
+      window.open(`mailto:${email}`);
+    } else if (type === 'phone' && phone) {
+      window.open(`tel:${phone}`);
     }
   };
 
@@ -524,6 +671,45 @@ const ConfirmedReservations: React.FC = () => {
     }
   };
 
+  const getPaymentStatusBadge = (payment?: Payment) => {
+    if (!payment) {
+      return {
+        text: 'Non payé',
+        color: 'text-gray-600',
+        bgColor: 'bg-gray-100',
+        icon: <Clock className="w-3 h-3" />
+      };
+    }
+    
+    const statusMap: Record<string, { text: string; color: string; bgColor: string; icon: React.ReactNode }> = {
+      PENDING: { 
+        text: 'En attente', 
+        color: 'text-yellow-600', 
+        bgColor: 'bg-yellow-50',
+        icon: <Clock className="w-3 h-3" />
+      },
+      COMPLETED: { 
+        text: 'Payé', 
+        color: 'text-green-600', 
+        bgColor: 'bg-green-50',
+        icon: <CheckCircle className="w-3 h-3" />
+      },
+      FAILED: { 
+        text: 'Échoué', 
+        color: 'text-red-600', 
+        bgColor: 'bg-red-50',
+        icon: <XCircle className="w-3 h-3" />
+      }
+    };
+
+    return statusMap[payment.status] || { 
+      text: payment.status, 
+      color: 'text-gray-600', 
+      bgColor: 'bg-gray-100', 
+      icon: null 
+    };
+  };
+
   const getArrivalStatus = (checkIn: string) => {
     const daysUntilArrival = getDaysUntilArrival(checkIn);
     
@@ -546,22 +732,84 @@ const ConfirmedReservations: React.FC = () => {
     return 'bg-gray-100 text-gray-600 border-gray-200';
   };
 
+  // Formater le prix
+  const formatCurrency = (amount: string | number) => {
+    const num = typeof amount === 'string' ? parseFloat(amount) : amount;
+    return new Intl.NumberFormat('fr-FR', {
+      style: 'currency',
+      currency: 'EUR',
+      minimumFractionDigits: 2
+    }).format(num);
+  };
+
   // Exporter les réservations
   const handleExport = async () => {
     try {
       setExporting(true);
-      const csvContent = "data:text/csv;charset=utf-8," 
-        + ["ID,Client,Email,Téléphone,Hôtel,Ville,Chambre,Type,Check-in,Check-out,Nuits,Statut,Jours avant arrivée,Méthode Paiement,Montant,Date Réservation,Demandes spéciales"]
-          .concat(filteredReservations.map(r => {
-            const daysUntilArrival = getDaysUntilArrival(r.check_in);
-            return `${r.id},"${r.guest_name || 'Client'}","${r.guest_email || ''}","${r.guest_phone || ''}","${r.hotel_name || '-'}","${r.hotel_city || ''}","${r.room_number || r.room}","${r.room_type || ''}","${r.check_in}","${r.check_out}",${calculateNights(r.check_in, r.check_out)},"${getStatusLabel()}","${daysUntilArrival !== null ? daysUntilArrival : 'N/A'}","${r.payment_info?.payment_method || 'N/A'}","${r.total_price}€","${r.created_at}","${r.special_requests || ''}"`;
-          }))
-          .join("\n");
       
-      const encodedUri = encodeURI(csvContent);
-      const link = document.createElement("a");
-      link.setAttribute("href", encodedUri);
-      link.setAttribute("download", `reservations_confirmees_${format(new Date(), 'yyyy-MM-dd_HH-mm')}.csv`);
+      const headers = [
+        'ID',
+        'Hôtel',
+        'Ville',
+        'Client',
+        'Email',
+        'Téléphone',
+        'Chambre',
+        'Type',
+        'Check-in',
+        'Check-out',
+        'Nuits',
+        'Jours avant arrivée',
+        'Statut',
+        'Méthode Paiement',
+        'Statut Paiement',
+        'Montant',
+        'Petit-déjeuner',
+        'Demandes spéciales',
+        'Date Réservation'
+      ];
+      
+      const rows = filteredReservations.map(r => {
+        const daysUntilArrival = getDaysUntilArrival(r.check_in);
+        const hotelName = r.hotel_details?.name || r.hotel_name || '-';
+        const hotelCity = r.hotel_details?.city || r.hotel_city || '';
+        const guestName = r.guest_name || r.user_name || 'Client';
+        const guestEmail = r.guest_email || r.user_email || '';
+        const guestPhone = r.guest_phone || r.user_phone || '';
+        const paymentStatus = getPaymentStatusBadge(r.payment_info);
+        
+        return [
+          r.id,
+          `"${hotelName}"`,
+          `"${hotelCity}"`,
+          `"${guestName}"`,
+          `"${guestEmail}"`,
+          `"${guestPhone}"`,
+          `"${r.room_number || r.room}"`,
+          `"${r.room_type || ''}"`,
+          r.check_in,
+          r.check_out,
+          calculateNights(r.check_in, r.check_out),
+          daysUntilArrival !== null ? daysUntilArrival : 'N/A',
+          getStatusLabel(),
+          r.payment_info?.payment_method?.replace('_', ' ') || 'N/A',
+          paymentStatus.text,
+          `${parseFloat(r.total_price || '0').toFixed(2)} €`,
+          r.breakfast_included ? 'Oui' : 'Non',
+          `"${(r.special_requests || '').replace(/"/g, '""')}"`,
+          r.created_at
+        ];
+      });
+      
+      const csvContent = [
+        headers.join(','),
+        ...rows.map(row => row.join(','))
+      ].join('\n');
+      
+      const encodedUri = encodeURI('data:text/csv;charset=utf-8,' + csvContent);
+      const link = document.createElement('a');
+      link.setAttribute('href', encodedUri);
+      link.setAttribute('download', `reservations_confirmees_${format(new Date(), 'yyyy-MM-dd_HH-mm')}.csv`);
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -604,7 +852,7 @@ const ConfirmedReservations: React.FC = () => {
       <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50 flex flex-col items-center justify-center">
         <Loader2 className="w-16 h-16 text-blue-500 animate-spin mb-6" />
         <p className="text-gray-600 text-lg">Chargement des réservations confirmées...</p>
-        <p className="text-gray-500 text-sm mt-2">Récupération des séjours à venir</p>
+        <p className="text-gray-500 text-sm mt-2">Récupération des détails des séjours à venir</p>
       </div>
     );
   }
@@ -676,7 +924,7 @@ const ConfirmedReservations: React.FC = () => {
                 <div className="bg-gradient-to-r from-indigo-500 to-blue-500 rounded-xl p-4 text-white shadow-lg">
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-sm opacity-90">Revenue total</p>
+                      <p className="text-sm opacity-90">Revenu total</p>
                       <p className="text-2xl font-bold">{stats.total_revenue.toFixed(0)} €</p>
                     </div>
                     <TrendingUp className="w-8 h-8 opacity-80" />
@@ -939,6 +1187,21 @@ const ConfirmedReservations: React.FC = () => {
                   const isTomorrowArrival = daysUntilArrival === 1;
                   const isUrgentArrival = daysUntilArrival !== null && daysUntilArrival <= 3 && daysUntilArrival >= 0;
                   
+                  const hotel = reservation.hotel_details;
+                  const hotelName = hotel?.name || reservation.hotel_name || 'Hôtel non spécifié';
+                  const hotelCity = hotel?.city || reservation.hotel_city || '';
+                  const hotelCountry = hotel?.country || reservation.hotel_country || '';
+                  const hotelAddress = hotel?.address || reservation.hotel_address || '';
+                  const hotelPhone = hotel?.phone || reservation.hotel_phone || '';
+                  const hotelEmail = hotel?.email || reservation.hotel_email || '';
+                  const hotelImage = reservation.hotel_image || hotel?.images?.[0]?.image || '';
+                  
+                  const guestName = reservation.guest_name || reservation.user_name || `Client #${reservation.user}`;
+                  const guestEmail = reservation.guest_email || reservation.user_email;
+                  const guestPhone = reservation.guest_phone || reservation.user_phone;
+                  
+                  const paymentStatus = getPaymentStatusBadge(reservation.payment_info);
+                  
                   return (
                     <div
                       key={reservation.id}
@@ -981,10 +1244,10 @@ const ConfirmedReservations: React.FC = () => {
                         {/* Informations hôtel */}
                         <div className="flex-1">
                           <div className="flex items-start gap-4">
-                            {reservation.hotel_image ? (
+                            {hotelImage ? (
                               <img
-                                src={reservation.hotel_image}
-                                alt={reservation.hotel_name || 'Hôtel'}
+                                src={hotelImage}
+                                alt={hotelName}
                                 className="w-16 h-16 rounded-xl object-cover shadow-sm"
                               />
                             ) : (
@@ -995,9 +1258,12 @@ const ConfirmedReservations: React.FC = () => {
                             
                             <div className="flex-1">
                               <div className="flex items-center gap-3 mb-2">
-                                <h3 className="text-xl font-bold text-gray-900">
-                                  {reservation.hotel_name || 'Hôtel non spécifié'}
-                                </h3>
+                                <button
+                                  onClick={() => handleViewHotel(hotel?.id || reservation.hotel_id)}
+                                  className="text-xl font-bold text-gray-900 hover:text-blue-600 transition-colors text-left"
+                                >
+                                  {hotelName}
+                                </button>
                                 <div className="flex flex-wrap gap-2">
                                   <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full border text-sm font-medium ${getStatusColor()}`}>
                                     {getStatusIcon()}
@@ -1011,10 +1277,10 @@ const ConfirmedReservations: React.FC = () => {
                               </div>
                               
                               <div className="flex flex-wrap items-center gap-4 text-sm text-gray-600">
-                                {reservation.hotel_city && (
+                                {hotelCity && (
                                   <div className="flex items-center gap-1">
                                     <MapPin className="w-4 h-4" />
-                                    <span>{reservation.hotel_city}{reservation.hotel_country ? `, ${reservation.hotel_country}` : ''}</span>
+                                    <span>{hotelCity}{hotelCountry ? `, ${hotelCountry}` : ''}</span>
                                   </div>
                                 )}
                                 
@@ -1025,10 +1291,12 @@ const ConfirmedReservations: React.FC = () => {
                                   </div>
                                 )}
                                 
-                                {reservation.hotel_phone && (
+                                {hotelPhone && (
                                   <div className="flex items-center gap-1">
                                     <Phone className="w-4 h-4" />
-                                    <span>{reservation.hotel_phone}</span>
+                                    <a href={`tel:${hotelPhone}`} className="hover:text-blue-600">
+                                      {hotelPhone}
+                                    </a>
                                   </div>
                                 )}
                               </div>
@@ -1049,10 +1317,15 @@ const ConfirmedReservations: React.FC = () => {
                           {isTodayArrival && (
                             <button
                               onClick={() => handleCheckIn(reservation)}
-                              className="px-4 py-2 bg-gradient-to-r from-emerald-500 to-teal-500 text-white rounded-lg hover:from-emerald-600 hover:to-teal-600 transition-all flex items-center gap-2 shadow-sm"
+                              disabled={processingCheckIn === reservation.id}
+                              className="px-4 py-2 bg-gradient-to-r from-emerald-500 to-teal-500 text-white rounded-lg hover:from-emerald-600 hover:to-teal-600 transition-all flex items-center gap-2 shadow-sm disabled:opacity-50"
                             >
-                              <CheckCircle className="w-4 h-4" />
-                              Check-in
+                              {processingCheckIn === reservation.id ? (
+                                <Loader2 className="w-4 h-4 animate-spin" />
+                              ) : (
+                                <CheckCircle className="w-4 h-4" />
+                              )}
+                              {processingCheckIn === reservation.id ? 'Check-in...' : 'Check-in'}
                             </button>
                           )}
                           
@@ -1098,21 +1371,21 @@ const ConfirmedReservations: React.FC = () => {
                             <div>
                               <p className="text-sm text-gray-600 mb-1">Nom complet</p>
                               <p className="font-medium text-gray-900 text-lg">
-                                {reservation.guest_name || `Client #${reservation.user}`}
+                                {guestName}
                               </p>
                             </div>
-                            {reservation.guest_email && (
+                            {guestEmail && (
                               <div>
                                 <p className="text-sm text-gray-600 mb-1">Email</p>
                                 <div className="flex items-center gap-2">
                                   <a 
-                                    href={`mailto:${reservation.guest_email}`}
+                                    href={`mailto:${guestEmail}`}
                                     className="font-medium text-blue-600 hover:text-blue-800 hover:underline"
                                   >
-                                    {reservation.guest_email}
+                                    {guestEmail}
                                   </a>
                                   <button
-                                    onClick={() => copyToClipboard(reservation.guest_email!)}
+                                    onClick={() => copyToClipboard(guestEmail!)}
                                     className="text-gray-400 hover:text-gray-600"
                                   >
                                     <Copy className="w-4 h-4" />
@@ -1120,18 +1393,18 @@ const ConfirmedReservations: React.FC = () => {
                                 </div>
                               </div>
                             )}
-                            {reservation.guest_phone && (
+                            {guestPhone && (
                               <div>
                                 <p className="text-sm text-gray-600 mb-1">Téléphone</p>
                                 <div className="flex items-center gap-2">
                                   <a 
-                                    href={`tel:${reservation.guest_phone}`}
+                                    href={`tel:${guestPhone}`}
                                     className="font-medium text-blue-600 hover:text-blue-800 hover:underline"
                                   >
-                                    {reservation.guest_phone}
+                                    {guestPhone}
                                   </a>
                                   <button
-                                    onClick={() => copyToClipboard(reservation.guest_phone!)}
+                                    onClick={() => copyToClipboard(guestPhone!)}
                                     className="text-gray-400 hover:text-gray-600"
                                   >
                                     <Copy className="w-4 h-4" />
@@ -1200,10 +1473,10 @@ const ConfirmedReservations: React.FC = () => {
                             <div>
                               <p className="text-sm text-gray-600 mb-1">Montant total</p>
                               <p className="text-2xl font-bold text-gray-900">
-                                {parseFloat(reservation.total_price).toFixed(2)} €
+                                {formatCurrency(reservation.total_price || '0')}
                               </p>
                               <p className="text-sm text-gray-600">
-                                {nights > 0 ? (parseFloat(reservation.total_price) / nights).toFixed(2) + ' €/nuit' : ''}
+                                {nights > 0 ? formatCurrency(parseFloat(reservation.total_price || '0') / nights) + '/nuit' : ''}
                               </p>
                             </div>
                             
@@ -1221,26 +1494,22 @@ const ConfirmedReservations: React.FC = () => {
                                 
                                 <div className="flex items-center justify-between">
                                   <span className="text-gray-600">Statut:</span>
-                                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                                    reservation.payment_info.status === 'PAID' 
-                                      ? 'bg-emerald-100 text-emerald-700'
-                                      : reservation.payment_info.status === 'PENDING'
-                                        ? 'bg-amber-100 text-amber-700'
-                                        : 'bg-red-100 text-red-700'
-                                  }`}>
-                                    {reservation.payment_info.status === 'PAID' ? 'Payé' : 
-                                     reservation.payment_info.status === 'PENDING' ? 'En attente' : 'Échoué'}
-                                  </span>
+                                  <div className={`flex items-center gap-1 px-2 py-1 rounded-full text-xs ${paymentStatus.bgColor}`}>
+                                    {paymentStatus.icon}
+                                    <span className={`font-medium ${paymentStatus.color}`}>
+                                      {paymentStatus.text}
+                                    </span>
+                                  </div>
                                 </div>
                                 
-                                <div className="flex items-center justify-between">
-                                  <span className="text-gray-600">Date paiement:</span>
-                                  <span className="font-medium">
-                                    {reservation.payment_info.payment_date 
-                                      ? formatDate(reservation.payment_info.payment_date)
-                                      : 'En attente'}
-                                  </span>
-                                </div>
+                                {reservation.payment_info.payment_date && (
+                                  <div className="flex items-center justify-between">
+                                    <span className="text-gray-600">Date paiement:</span>
+                                    <span className="font-medium">
+                                      {formatDate(reservation.payment_info.payment_date)}
+                                    </span>
+                                  </div>
+                                )}
                               </>
                             )}
                           </div>
@@ -1265,22 +1534,51 @@ const ConfirmedReservations: React.FC = () => {
                                 Détails de l'hôtel
                               </h6>
                               <div className="space-y-3">
-                                {reservation.hotel_address && (
+                                {hotelAddress && (
                                   <div>
                                     <p className="text-sm text-gray-600 mb-1">Adresse complète</p>
-                                    <p className="font-medium">{reservation.hotel_address}</p>
+                                    <p className="font-medium">{hotelAddress}</p>
+                                    <p className="text-sm text-gray-600">{hotelCity}, {hotelCountry}</p>
                                   </div>
                                 )}
                                 
-                                {reservation.hotel_email && (
+                                {hotelEmail && (
                                   <div>
                                     <p className="text-sm text-gray-600 mb-1">Email de contact</p>
                                     <a 
-                                      href={`mailto:${reservation.hotel_email}`}
+                                      href={`mailto:${hotelEmail}`}
                                       className="font-medium text-blue-600 hover:text-blue-800 hover:underline"
                                     >
-                                      {reservation.hotel_email}
+                                      {hotelEmail}
                                     </a>
+                                  </div>
+                                )}
+                                
+                                {hotel?.website && (
+                                  <div>
+                                    <p className="text-sm text-gray-600 mb-1">Site web</p>
+                                    <a 
+                                      href={hotel.website}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="font-medium text-blue-600 hover:text-blue-800 hover:underline flex items-center gap-1"
+                                    >
+                                      {hotel.website}
+                                      <ExternalLink className="w-3 h-3" />
+                                    </a>
+                                  </div>
+                                )}
+                                
+                                {hotel?.manager && (
+                                  <div>
+                                    <p className="text-sm text-gray-600 mb-1">Manager</p>
+                                    <button
+                                      onClick={() => handleViewManager(hotel.manager)}
+                                      className="font-medium text-blue-600 hover:text-blue-800 hover:underline flex items-center gap-1"
+                                    >
+                                      <User className="w-3 h-3" />
+                                      Voir le manager
+                                    </button>
                                   </div>
                                 )}
                                 
@@ -1321,16 +1619,21 @@ const ConfirmedReservations: React.FC = () => {
                                   {isTodayArrival && (
                                     <button
                                       onClick={() => handleCheckIn(reservation)}
-                                      className="p-3 bg-white border border-emerald-200 text-emerald-700 rounded-lg hover:bg-emerald-50 transition-all flex flex-col items-center justify-center"
+                                      disabled={processingCheckIn === reservation.id}
+                                      className="p-3 bg-white border border-emerald-200 text-emerald-700 rounded-lg hover:bg-emerald-50 transition-all flex flex-col items-center justify-center disabled:opacity-50"
                                     >
-                                      <CheckCircle className="w-5 h-5 mb-2" />
+                                      {processingCheckIn === reservation.id ? (
+                                        <Loader2 className="w-5 h-5 mb-2 animate-spin" />
+                                      ) : (
+                                        <CheckCircle className="w-5 h-5 mb-2" />
+                                      )}
                                       <span className="text-sm font-medium">Check-in</span>
                                     </button>
                                   )}
                                   
-                                  {reservation.guest_email && (
+                                  {guestEmail && (
                                     <button
-                                      onClick={() => window.open(`mailto:${reservation.guest_email}`)}
+                                      onClick={() => handleContactGuest(reservation, 'email')}
                                       className="p-3 bg-white border border-gray-200 text-gray-700 rounded-lg hover:bg-gray-50 transition-all flex flex-col items-center justify-center"
                                     >
                                       <Mail className="w-5 h-5 mb-2" />
@@ -1338,9 +1641,9 @@ const ConfirmedReservations: React.FC = () => {
                                     </button>
                                   )}
                                   
-                                  {reservation.guest_phone && (
+                                  {guestPhone && (
                                     <button
-                                      onClick={() => window.open(`tel:${reservation.guest_phone}`)}
+                                      onClick={() => handleContactGuest(reservation, 'phone')}
                                       className="p-3 bg-white border border-gray-200 text-gray-700 rounded-lg hover:bg-gray-50 transition-all flex flex-col items-center justify-center"
                                     >
                                       <PhoneCall className="w-5 h-5 mb-2" />
@@ -1352,7 +1655,7 @@ const ConfirmedReservations: React.FC = () => {
                                     <button
                                       onClick={() => handleSendReminder(reservation)}
                                       disabled={sendingReminder === reservation.id}
-                                      className="p-3 bg-white border border-amber-200 text-amber-700 rounded-lg hover:bg-amber-50 transition-all flex flex-col items-center justify-center"
+                                      className="p-3 bg-white border border-amber-200 text-amber-700 rounded-lg hover:bg-amber-50 transition-all flex flex-col items-center justify-center disabled:opacity-50"
                                     >
                                       <Send className={`w-5 h-5 mb-2 ${sendingReminder === reservation.id ? 'animate-pulse' : ''}`} />
                                       <span className="text-sm font-medium">Rappel</span>
@@ -1360,7 +1663,7 @@ const ConfirmedReservations: React.FC = () => {
                                   )}
                                   
                                   <button
-                                    onClick={() => copyToClipboard(`Réservation #${reservation.id} - ${reservation.hotel_name} - ${formatDate(reservation.check_in)} au ${formatDate(reservation.check_out)}`)}
+                                    onClick={() => copyToClipboard(`Réservation #${reservation.id} - ${hotelName} - ${formatDate(reservation.check_in)} au ${formatDate(reservation.check_out)}`)}
                                     className="p-3 bg-white border border-purple-200 text-purple-700 rounded-lg hover:bg-purple-50 transition-all flex flex-col items-center justify-center"
                                   >
                                     <Copy className="w-5 h-5 mb-2" />
@@ -1375,7 +1678,9 @@ const ConfirmedReservations: React.FC = () => {
                                     <MessageSquare className="w-5 h-5" />
                                     Demandes spéciales
                                   </h6>
-                                  <p className="text-amber-800 text-sm">{reservation.special_requests}</p>
+                                  <p className="text-amber-800 text-sm whitespace-pre-wrap">
+                                    {reservation.special_requests}
+                                  </p>
                                 </div>
                               )}
                             </div>
@@ -1387,7 +1692,7 @@ const ConfirmedReservations: React.FC = () => {
                                 <AlertCircle className="w-5 h-5 text-amber-600" />
                                 <h6 className="font-semibold text-amber-800">Notes internes</h6>
                               </div>
-                              <p className="text-amber-700">{reservation.notes}</p>
+                              <p className="text-amber-700 whitespace-pre-wrap">{reservation.notes}</p>
                             </div>
                           )}
                         </div>
@@ -1395,11 +1700,16 @@ const ConfirmedReservations: React.FC = () => {
                       
                       {/* Pied de carte */}
                       <div className="flex items-center justify-between mt-6 pt-4 border-t border-gray-100">
-                        <div className="text-sm text-gray-500">
-                          ID Réservation: <span className="font-mono font-bold">#{reservation.id}</span>
+                        <div className="flex items-center gap-3 text-sm text-gray-500">
+                          <span>ID Réservation: <span className="font-mono font-bold">#{reservation.id}</span></span>
                           {reservation.breakfast_included && (
-                            <span className="ml-3 px-2 py-0.5 bg-amber-100 text-amber-700 text-xs font-medium rounded-full">
+                            <span className="px-2 py-0.5 bg-amber-100 text-amber-700 text-xs font-medium rounded-full">
                               Petit-déjeuner inclus
+                            </span>
+                          )}
+                          {reservation.payment_info?.invoice && (
+                            <span className="px-2 py-0.5 bg-purple-100 text-purple-700 text-xs font-medium rounded-full">
+                              Facture #{reservation.payment_info.invoice.invoice_number}
                             </span>
                           )}
                         </div>
@@ -1477,7 +1787,7 @@ const ConfirmedReservations: React.FC = () => {
           )}
         </div>
 
-        {/* Message de retour */}
+        {/* Message de retour - À décommenter si nécessaire */}
         {/* <div className="mt-8 text-center">
           <button
             onClick={() => navigate('/director/reservations/active')}

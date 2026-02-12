@@ -11,6 +11,9 @@ from rest_framework.decorators import action
 from django.db.models import Count, Q, Sum
 from django.utils import timezone
 from datetime import timedelta
+from django.contrib.auth.password_validation import validate_password
+from django.core.exceptions import ValidationError
+from rest_framework.decorators import api_view, permission_classes
 
 from .models import User, RoleEnum
 from .serializers import UserSerializer, RegisterSerializer, LoginSerializer
@@ -300,3 +303,66 @@ class AdminUserViewSet(viewsets.ModelViewSet):
             'message': f'Utilisateur {status_text} avec succès',
             'is_blocked': user.is_blocked
         })
+        
+class UserProfileView(generics.RetrieveUpdateAPIView):
+    """Récupérer et mettre à jour le profil de l'utilisateur connecté"""
+    serializer_class = UserSerializer
+    permission_classes = [IsAuthenticated]
+    
+    def get_object(self):
+        return self.request.user
+    
+
+class UserDetailView(generics.RetrieveAPIView):
+    """Récupérer un utilisateur par son ID (pour admin)"""
+    queryset = User.objects.all()
+    serializer_class = UserSerializer
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request, *args, **kwargs):
+        # Seul l'admin peut voir les autres profils
+        if request.user.role == 'CLIENT' and request.user.id != kwargs.get('pk'):
+            return Response(
+                {'error': 'Vous n\'avez pas la permission de voir ce profil'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        return super().get(request, *args, **kwargs)
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def change_password(request):
+    """Changer le mot de passe de l'utilisateur connecté"""
+    user = request.user
+    data = request.data
+    
+    # Vérifier l'ancien mot de passe
+    if not user.check_password(data.get('current_password')):
+        return Response(
+            {'message': 'Mot de passe actuel incorrect'},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+    
+    # Vérifier que le nouveau mot de passe correspond à la confirmation
+    if data.get('new_password') != data.get('confirm_password'):
+        return Response(
+            {'message': 'Les mots de passe ne correspondent pas'},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+    
+    # Valider le nouveau mot de passe
+    try:
+        validate_password(data.get('new_password'), user)
+    except ValidationError as e:
+        return Response(
+            {'message': e.messages},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+    
+    # Changer le mot de passe
+    user.set_password(data.get('new_password'))
+    user.save()
+    
+    return Response(
+        {'message': 'Mot de passe modifié avec succès'},
+        status=status.HTTP_200_OK
+    )

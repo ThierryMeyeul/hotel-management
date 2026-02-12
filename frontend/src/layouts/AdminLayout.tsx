@@ -45,9 +45,9 @@ const AdminLayout: React.FC = () => {
           />
           
           <main className="flex-1 p-4 sm:p-6">
-            <div className="max-w-7xl mx-auto">
+            {/* <div className="max-w-7xl mx-auto"> */}
               <Outlet />
-            </div>
+            {/* </div> */}
           </main>
 
           <AdminFooter />
